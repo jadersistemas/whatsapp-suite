@@ -1,0 +1,32 @@
+# Manager
+manager/node_modules
+manager/vendor
+manager/public/build
+manager/.env
+manager/.env.backup
+manager/storage/*.key
+manager/bootstrap/cache/*.php
+manager/storage/framework/views/*.php
+manager/storage/framework/cache/*
+manager/storage/framework/sessions/*
+manager/storage/debugbar
+manager/*.log
+manager/check_instances.php
+manager/fix_token.php
+manager/fix_all_tokens.php
+
+# API Go
+api/whatsapp-api
+api/whatsapp-api.exe
+api/data/
+api/*.db
+
+# Docker
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo

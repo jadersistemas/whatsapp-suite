@@ -1,0 +1,134 @@
+# ============================================
+# WhatsApp Suite - Full Stack
+# ============================================
+# API Go + Manager + PostgreSQL
+#
+# Uso: docker compose up -d
+# Manager: http://localhost:8080
+# API Go:  http://localhost:8084
+# ============================================
+
+services:
+  # ──────────────────────────────────────────
+  # WhatsApp API Go
+  # ──────────────────────────────────────────
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: whatsapp-api
+    restart: unless-stopped
+    environment:
+      - DOCKER_ENV=true
+      - TZ=${TZ:-America/Sao_Paulo}
+      - SERVER_PORT=8084
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - DATABASE_URL=postgres://whatsapp:${DB_PASSWORD:-changeme}@postgres:5432/whatsapp_api?sslmode=disable
+      - DATABASE_SAVE_DATA_NEW_MESSAGE=true
+      - DATABASE_SAVE_MESSAGE_UPDATE=false
+      - DATABASE_SAVE_DATA_CONTACTS=false
+      - WHATSAPP_SESSION_STORE=postgres
+      - AUTHENTICATION_JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-0}
+      - AUTHENTICATION_JWT_SECRET=${JWT_SECRET:-change-this-in-production}
+      - AUTHENTICATION_GLOBAL_AUTH_TOKEN=${WHATSAPP_API_KEY:-changeme}
+      - WHATSAPP_AUTO_RECONNECT=true
+      - WHATSAPP_STARTUP_RECONNECT_CONCURRENCY=5
+      - WHATSAPP_CONNECT_TIMEOUT=30
+      - MESSAGE_PROCESSING_WORKERS=4
+      - MESSAGE_PROCESSING_QUEUE_SIZE=100
+    volumes:
+      - api_data:/app/data
+    ports:
+      - "${API_PORT:-8084}:8084"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8084/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ──────────────────────────────────────────
+  # WhatsApp Manager (Laravel)
+  # ──────────────────────────────────────────
+  manager:
+    build:
+      context: ./manager
+      dockerfile: Dockerfile
+    container_name: whatsapp-manager
+    restart: unless-stopped
+    environment:
+      - APP_NAME=${APP_NAME:-WhatsAppManager}
+      - APP_ENV=production
+      - APP_DEBUG=${APP_DEBUG:-false}
+      - APP_URL=${APP_URL:-http://localhost:8080}
+      - APP_KEY=${APP_KEY:-}
+      - DB_CONNECTION=pgsql
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_DATABASE=${DB_DATABASE:-whatsapp_manager}
+      - DB_USERNAME=${DB_USERNAME:-whatsapp}
+      - DB_PASSWORD=${DB_PASSWORD:-changeme}
+      - SESSION_DRIVER=database
+      - QUEUE_CONNECTION=database
+      - CACHE_STORE=database
+      - WHATSAPP_API_URL=http://api:8084
+      - WHATSAPP_API_KEY=${WHATSAPP_API_KEY:-changeme}
+    volumes:
+      - manager_storage:/var/www/storage
+      - manager_bootstrap:/var/www/bootstrap/cache
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+
+  manager-nginx:
+    image: nginx:alpine
+    container_name: whatsapp-manager-nginx
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8080}:80"
+    volumes:
+      - ./manager/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - manager_storage:/var/www/storage:ro
+      - manager_bootstrap:/var/www/bootstrap/cache:ro
+    depends_on:
+      - manager
+    networks:
+      - internal
+
+  # ──────────────────────────────────────────
+  # PostgreSQL (compartilhado)
+  # ──────────────────────────────────────────
+  postgres:
+    image: postgres:17-alpine
+    container_name: whatsapp-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:-whatsapp}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+      POSTGRES_DB: ${DB_DATABASE:-whatsapp_manager}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-whatsapp}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+volumes:
+  api_data:
+  manager_storage:
+  manager_bootstrap:
+  pgdata:
+
+networks:
+  internal:
+    driver: bridge
