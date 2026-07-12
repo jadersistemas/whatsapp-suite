@@ -1,0 +1,52 @@
+# Dependencies
+node_modules
+vendor
+
+# Build artifacts
+public/build
+public/hot
+public/storage
+storage/*.key
+
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.docker
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Tests
+tests
+phpunit.xml
+phpunit.xml.backup
+
+# Documentation
+README.md
+LICENSE
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Debug files
+npm-debug.log
+yarn-error.log
+.pnp.*
+
+# Laravel specific
+storage/debugbar
+storage/framework/views/*.php
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/testing
+bootstrap/cache/*.php

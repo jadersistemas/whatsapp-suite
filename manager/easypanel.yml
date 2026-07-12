@@ -1,0 +1,77 @@
+# EasyPanel configuration for WhatsApp Manager
+# Import this in EasyPanel > Projects > New Project > Import Compose
+# Or use this as reference to configure via EasyPanel UI
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: whatsapp-manager:latest
+    restart: unless-stopped
+    environment:
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - APP_URL={{APP_URL}}
+      - APP_KEY={{APP_KEY}}
+      - DB_CONNECTION=pgsql
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_DATABASE=whatsapp_manager
+      - DB_USERNAME=whatsapp
+      - DB_PASSWORD={{DB_PASSWORD}}
+      - WHATSAPP_API_URL={{WHATSAPP_API_URL}}
+      - WHATSAPP_API_KEY={{WHATSAPP_API_KEY}}
+      - SESSION_DRIVER=database
+      - CACHE_STORE=database
+      - QUEUE_CONNECTION=database
+    volumes:
+      - app_storage:/var/www/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - whatsapp-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "{{APP_PORT}}:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - app_storage:/var/www/storage:ro
+    depends_on:
+      - app
+    networks:
+      - whatsapp-net
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: whatsapp_manager
+      POSTGRES_USER: whatsapp
+      POSTGRES_PASSWORD: {{DB_PASSWORD}}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - whatsapp-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U whatsapp -d whatsapp_manager"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
+  app_storage:
+
+networks:
+  whatsapp-net:
+    driver: bridge
