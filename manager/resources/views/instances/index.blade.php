@@ -5,10 +5,10 @@
 @section('content')
 <div class="mb-8 flex justify-between items-center">
     <div>
-        <h1 class="text-3xl font-bold text-gray-800">
+        <h1 class="text-3xl font-bold text-gray-800 dark:text-white">
             <i class="fas fa-server mr-2 text-green-600"></i> Instâncias
         </h1>
-        <p class="text-gray-600 mt-1">Gerencie suas instâncias WhatsApp</p>
+        <p class="text-gray-600 dark:text-gray-400 mt-1">Gerencie suas instâncias WhatsApp</p>
     </div>
     <a href="{{ route('whatsapp.create') }}" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition">
         <i class="fas fa-plus mr-2"></i> Nova Instância
@@ -18,7 +18,7 @@
 @if($instances->count() > 0)
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         @foreach($instances as $instance)
-            <div class="bg-white rounded-xl shadow-md overflow-hidden card-hover transition">
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden card-hover transition">
                 <div class="gradient-bg px-6 py-4">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center">
@@ -32,14 +32,14 @@
                 </div>
 
                 <div class="p-6">
-                    <p class="text-gray-600 text-sm mb-4">{{ $instance->description ?? 'Sem descrição' }}</p>
+                    <p class="text-gray-600 dark:text-gray-400 text-sm mb-4">{{ $instance->description ?? 'Sem descrição' }}</p>
 
                     <div class="space-y-2 text-sm">
-                        <div class="flex items-center text-gray-600">
+                        <div class="flex items-center text-gray-600 dark:text-gray-400">
                             <i class="fas fa-phone mr-2 w-4"></i>
                             <span>{{ $instance->phone ?? 'Não conectado' }}</span>
                         </div>
-                        <div class="flex items-center text-gray-600">
+                        <div class="flex items-center text-gray-600 dark:text-gray-400">
                             <i class="fas fa-clock mr-2 w-4"></i>
                             <span>Criado: {{ $instance->created_at->format('d/m/Y H:i') }}</span>
                         </div>
@@ -57,7 +57,7 @@
                         </a>
                     </div>
 
-                    <div class="mt-4 pt-4 border-t border-gray-200">
+                    <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                         <form action="{{ route('whatsapp.delete', $instance->name) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja remover esta instância?')">
                             @csrf
                             @method('DELETE')
@@ -71,9 +71,9 @@
         @endforeach
     </div>
 @else
-    <div class="bg-white rounded-xl shadow-md p-12 text-center">
-        <i class="fas fa-inbox text-6xl text-gray-300 mb-4"></i>
-        <p class="text-gray-500 text-lg mb-4">Nenhuma instância encontrada</p>
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-12 text-center">
+        <i class="fas fa-inbox text-6xl text-gray-300 dark:text-gray-600 mb-4"></i>
+        <p class="text-gray-500 dark:text-gray-400 text-lg mb-4">Nenhuma instância encontrada</p>
         <a href="{{ route('whatsapp.create') }}" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition">
             <i class="fas fa-plus mr-2"></i> Criar Primeira Instância
         </a>
