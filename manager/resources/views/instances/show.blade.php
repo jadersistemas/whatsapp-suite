@@ -389,11 +389,11 @@
         result.classList.remove('hidden');
 
         try {
-            const token = document.querySelector('meta[name="csrf-token"]').content;
+            const csrfToken = form.querySelector('input[name="_token"]').value;
             const response = await fetch(`/instances/${instanceName}/settings`, {
                 method: 'PUT',
                 headers: {
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'X-CSRF-TOKEN': csrfToken,
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
                 },
