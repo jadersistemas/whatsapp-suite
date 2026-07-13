@@ -3,6 +3,7 @@ package whatsapp
 import (
 	"context"
 	"crypto/subtle"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"go.mau.fi/whatsmeow"
+	watypes "go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
 
 	"whatsapp-go-api/internal/config"
@@ -1158,6 +1160,10 @@ func (s *Service) registerEventHandlers(managed *ManagedWhatsAppClient, pairingC
 			if s.events != nil {
 				go s.events.HandleMessage(managed.Context, managed, event)
 			}
+			// Handle instance settings
+			if s.events != nil {
+				go s.handleInstanceSettings(managed, event)
+			}
 		case *events.FBMessage:
 			if s.events != nil {
 				go s.events.HandleFBMessage(managed.Context, managed, event)
@@ -1212,6 +1218,10 @@ func (s *Service) registerEventHandlers(managed *ManagedWhatsAppClient, pairingC
 			*events.CallRelayLatency,
 			*events.UnknownCallEvent:
 			s.dispatchCallUpsertWebhook(context.Background(), managed, event)
+			// Handle call rejection setting
+			if callOffer, ok := event.(*events.CallOffer); ok {
+				go s.handleCallOffer(managed, callOffer)
+			}
 		case *events.GroupInfo:
 			s.dispatchGroupInfoWebhooks(context.Background(), managed, event)
 		case *events.JoinedGroup:
@@ -1990,6 +2000,107 @@ func errorString(err error) string {
 		return ""
 	}
 	return err.Error()
+}
+
+// InstanceSettings holds per-instance configuration
+type InstanceSettings struct {
+	RejectCalls     bool `json:"rejectCalls"`
+	IgnoreGroups    bool `json:"ignoreGroups"`
+	AlwaysOnline    bool `json:"alwaysOnline"`
+	ReadMessages    bool `json:"readMessages"`
+	SyncFullHistory bool `json:"syncFullHistory"`
+	ViewStatus      bool `json:"viewStatus"`
+}
+
+func (s *Service) getInstanceSettings(managed *ManagedWhatsAppClient) InstanceSettings {
+	var settings InstanceSettings
+	instanceID := mustAtoi32(managed.InstanceID)
+	instance, err := s.instances.FindByID(context.Background(), instanceID)
+	if err != nil || len(instance.Instance.ExternalAttributes) == 0 {
+		return settings
+	}
+	var attrs map[string]any
+	if err := json.Unmarshal(instance.Instance.ExternalAttributes, &attrs); err != nil {
+		return settings
+	}
+	if v, ok := attrs["rejectCalls"].(bool); ok {
+		settings.RejectCalls = v
+	}
+	if v, ok := attrs["ignoreGroups"].(bool); ok {
+		settings.IgnoreGroups = v
+	}
+	if v, ok := attrs["alwaysOnline"].(bool); ok {
+		settings.AlwaysOnline = v
+	}
+	if v, ok := attrs["readMessages"].(bool); ok {
+		settings.ReadMessages = v
+	}
+	if v, ok := attrs["syncFullHistory"].(bool); ok {
+		settings.SyncFullHistory = v
+	}
+	if v, ok := attrs["viewStatus"].(bool); ok {
+		settings.ViewStatus = v
+	}
+	return settings
+}
+
+func (s *Service) handleCallOffer(managed *ManagedWhatsAppClient, event *events.CallOffer) {
+	settings := s.getInstanceSettings(managed)
+	if !settings.RejectCalls {
+		return
+	}
+	ctx := context.Background()
+	callID := event.CallID
+	if callID == "" {
+		return
+	}
+	// Reject the call
+	err := managed.Client.RejectCall(ctx, event.From, callID)
+	if err != nil {
+		s.logger.Warn().Err(err).
+			Str("instanceName", managed.InstanceName).
+			Str("callID", callID).
+			Msg("failed to reject call")
+	} else {
+		s.logger.Info().
+			Str("instanceName", managed.InstanceName).
+			Str("callID", callID).
+			Msg("call rejected by instance setting")
+	}
+}
+
+func (s *Service) handleInstanceSettings(managed *ManagedWhatsAppClient, event *events.Message) {
+	settings := s.getInstanceSettings(managed)
+	ctx := context.Background()
+
+	// Ignore groups
+	if settings.IgnoreGroups && event.Info.IsGroup {
+		s.logger.Debug().
+			Str("instanceName", managed.InstanceName).
+			Str("chat", event.Info.Chat.String()).
+			Msg("ignoring group message by instance setting")
+		return
+	}
+
+	// Read messages
+	if settings.ReadMessages && !event.Info.Chat.IsEmpty() {
+		go func() {
+			err := managed.Client.MarkRead(ctx, []watypes.MessageID{event.Info.ID}, time.Now(), event.Info.Chat, event.Info.Sender)
+			if err != nil {
+				s.logger.Warn().Err(err).
+					Str("instanceName", managed.InstanceName).
+					Str("messageID", string(event.Info.ID)).
+					Msg("failed to mark message as read")
+			}
+		}()
+	}
+
+	// Always online - send presence
+	if settings.AlwaysOnline && !event.Info.Chat.IsEmpty() {
+		go func() {
+			_ = managed.Client.SendPresence(ctx, watypes.PresenceAvailable)
+		}()
+	}
 }
 
 func IsAuthError(err error) bool {

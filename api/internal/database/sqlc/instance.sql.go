@@ -423,6 +423,74 @@ func (q *Queries) FindInstanceWithAuthByName(ctx context.Context, name string) (
 	return i, err
 }
 
+const findInstanceWithAuthByID = `-- name: FindInstanceWithAuthByID :one
+SELECT
+    i."id",
+    i."name",
+    i."description",
+    i."connectionStatus",
+    i."ownerJid",
+    i."profilePicUrl",
+    i."createdAt",
+    i."updatedAt",
+    i."externalAttributes",
+    c."connectionStatus" AS "whatsappConnectionStatus",
+    c."whatsappDeviceJid" AS "whatsappDeviceJid",
+    c."whatsappOwnerJid" AS "whatsappOwnerJid",
+    c."whatsappPhoneNumber" AS "whatsappPhoneNumber",
+    c."profilePicId" AS "profilePicId",
+    c."lastConnectedAt" AS "lastConnectedAt",
+    c."lastDisconnectedAt" AS "lastDisconnectedAt",
+    c."lastConnectionAttemptAt" AS "lastConnectionAttemptAt",
+    c."lastConnectionError" AS "lastConnectionError",
+    c."lastConnectionEvent" AS "lastConnectionEvent",
+    c."connectionAttempts" AS "connectionAttempts",
+    a."id" AS "authId",
+    a."token" AS "authToken",
+    a."createdAt" AS "authCreatedAt",
+    a."updatedAt" AS "authUpdatedAt",
+    a."instanceId" AS "authInstanceId"
+FROM "Instance" i
+LEFT JOIN "InstanceWhatsAppConnection" c ON c."instanceId" = i."id"
+LEFT JOIN "Auth" a ON a."instanceId" = i."id"
+WHERE i."id" = $1
+`
+
+type FindInstanceWithAuthByIDRow = FindInstanceWithAuthByNameRow
+
+func (q *Queries) FindInstanceWithAuthByID(ctx context.Context, id int32) (FindInstanceWithAuthByIDRow, error) {
+	row := q.db.QueryRow(ctx, findInstanceWithAuthByID, id)
+	var i FindInstanceWithAuthByIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Description,
+		&i.ConnectionStatus,
+		&i.OwnerJid,
+		&i.ProfilePicUrl,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ExternalAttributes,
+		&i.WhatsappConnectionStatus,
+		&i.WhatsappDeviceJid,
+		&i.WhatsappOwnerJid,
+		&i.WhatsappPhoneNumber,
+		&i.ProfilePicId,
+		&i.LastConnectedAt,
+		&i.LastDisconnectedAt,
+		&i.LastConnectionAttemptAt,
+		&i.LastConnectionError,
+		&i.LastConnectionEvent,
+		&i.ConnectionAttempts,
+		&i.AuthId,
+		&i.AuthToken,
+		&i.AuthCreatedAt,
+		&i.AuthUpdatedAt,
+		&i.AuthInstanceId,
+	)
+	return i, err
+}
+
 const instanceExists = `-- name: InstanceExists :one
 SELECT EXISTS (
     SELECT 1

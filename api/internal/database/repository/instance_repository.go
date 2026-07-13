@@ -21,6 +21,7 @@ type InstanceRepository interface {
 	CreateTx(ctx context.Context, q *db.Queries, input types.CreateInstanceInput) (types.InstanceWithAuth, error)
 	FindByName(ctx context.Context, name string) (types.InstanceWithAuth, error)
 	FindByNameTx(ctx context.Context, q *db.Queries, name string) (types.InstanceWithAuth, error)
+	FindByID(ctx context.Context, id int32) (types.InstanceWithAuth, error)
 	ListDetails(ctx context.Context, name *string) ([]types.InstanceDetails, error)
 	FetchDetailsByName(ctx context.Context, name string) (types.InstanceDetails, error)
 	FindAutoConnectInstances(ctx context.Context) ([]types.Instance, error)
@@ -108,6 +109,18 @@ func (r *instanceRepository) findByName(ctx context.Context, q *db.Queries, name
 		}
 		r.logger.Error().Err(err).Str("operation", "instance.find_by_name").Str("table", "Instance").Msg("failed to find instance")
 		return types.InstanceWithAuth{}, fmt.Errorf("find instance by name: %w", err)
+	}
+	return mapInstanceWithAuthRow(row), nil
+}
+
+func (r *instanceRepository) FindByID(ctx context.Context, id int32) (types.InstanceWithAuth, error) {
+	row, err := r.q.FindInstanceWithAuthByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return types.InstanceWithAuth{}, fmt.Errorf("%w: %w", ErrInstanceNotFound, err)
+		}
+		r.logger.Error().Err(err).Str("operation", "instance.find_by_id").Str("table", "Instance").Msg("failed to find instance")
+		return types.InstanceWithAuth{}, fmt.Errorf("find instance by id: %w", err)
 	}
 	return mapInstanceWithAuthRow(row), nil
 }
