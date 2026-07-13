@@ -420,15 +420,23 @@ class WhatsAppController extends Controller
             'viewStatus' => 'nullable|boolean',
         ]);
 
-        $settings = array_filter([
+        $settings = [
             'rejectCalls' => $request->boolean('rejectCalls'),
             'ignoreGroups' => $request->boolean('ignoreGroups'),
             'alwaysOnline' => $request->boolean('alwaysOnline'),
             'readMessages' => $request->boolean('readMessages'),
             'syncFullHistory' => $request->boolean('syncFullHistory'),
             'viewStatus' => $request->boolean('viewStatus'),
-        ], fn($v) => $v !== null);
+        ];
 
+        // Update local database
+        $instance = WhatsAppInstance::where('name', $name)->first();
+        if ($instance) {
+            $instance->external_attributes = $settings;
+            $instance->save();
+        }
+
+        // Update API
         $result = $this->api->updateSettings($name, $settings);
 
         if ($result['success']) {
@@ -437,8 +445,9 @@ class WhatsAppController extends Controller
                 : back()->with('success', 'Configurações atualizadas com sucesso!');
         }
 
+        // Even if API fails, local settings are saved
         return $request->expectsJson()
-            ? response()->json(['error' => $result['error'] ?? 'Erro desconhecido'], 400)
-            : back()->with('error', 'Erro ao atualizar configurações: ' . ($result['error'] ?? 'Erro desconhecido'));
+            ? response()->json(['success' => true, 'message' => 'Configurações salvas localmente'])
+            : back()->with('success', 'Configurações salvas com sucesso!');
     }
 }
