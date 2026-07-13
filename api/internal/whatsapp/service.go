@@ -79,6 +79,19 @@ type ConnectionService interface {
 	Shutdown(ctx context.Context) error
 }
 
+// ChatbotContext holds conversation state per chat
+type ChatbotContext struct {
+	CurrentFlowID string
+	History       []ChatbotMessage
+	LastActivity  time.Time
+}
+
+type ChatbotMessage struct {
+	Role    string // "user" or "bot"
+	Content string
+	Time    time.Time
+}
+
 type Service struct {
 	config             config.WhatsAppConfig
 	instances          repository.InstanceRepository
@@ -95,6 +108,8 @@ type Service struct {
 	pairings           *pairingManager
 	contactSyncMu      sync.Mutex
 	contactSyncCancels map[string]*contactSyncHandle
+	chatbotContexts    map[string]*ChatbotContext // key: instanceID:chatJID
+	chatbotMu          sync.RWMutex
 }
 
 type contactSyncHandle struct {
@@ -131,6 +146,7 @@ func NewService(
 		appCancel:          appCancel,
 		pairings:           newPairingManager(),
 		contactSyncCancels: make(map[string]*contactSyncHandle),
+		chatbotContexts:    make(map[string]*ChatbotContext),
 	}, nil
 }
 
@@ -2289,6 +2305,66 @@ func (s *Service) handleInstanceSettings(managed *ManagedWhatsAppClient, event *
 	}
 }
 
+const chatbotContextTimeout = 30 * time.Minute
+
+func (s *Service) getChatbotContextKey(instanceID string, chat watypes.JID) string {
+	return instanceID + ":" + chat.String()
+}
+
+func (s *Service) getChatbotContext(instanceID string, chat watypes.JID) *ChatbotContext {
+	key := s.getChatbotContextKey(instanceID, chat)
+	s.chatbotMu.RLock()
+	ctx, exists := s.chatbotContexts[key]
+	s.chatbotMu.RUnlock()
+
+	if !exists || time.Since(ctx.LastActivity) > chatbotContextTimeout {
+		return nil
+	}
+	return ctx
+}
+
+func (s *Service) setChatbotContext(instanceID string, chat watypes.JID, flowID string, userMsg string, botMsg string) {
+	key := s.getChatbotContextKey(instanceID, chat)
+	s.chatbotMu.Lock()
+	defer s.chatbotMu.Unlock()
+
+	ctx, exists := s.chatbotContexts[key]
+	if !exists {
+		ctx = &ChatbotContext{}
+		s.chatbotContexts[key] = ctx
+	}
+
+	ctx.CurrentFlowID = flowID
+	ctx.LastActivity = time.Now()
+
+	if userMsg != "" {
+		ctx.History = append(ctx.History, ChatbotMessage{
+			Role:    "user",
+			Content: userMsg,
+			Time:    time.Now(),
+		})
+	}
+	if botMsg != "" {
+		ctx.History = append(ctx.History, ChatbotMessage{
+			Role:    "bot",
+			Content: botMsg,
+			Time:    time.Now(),
+		})
+	}
+
+	// Keep only last 20 messages
+	if len(ctx.History) > 20 {
+		ctx.History = ctx.History[len(ctx.History)-20:]
+	}
+}
+
+func (s *Service) clearChatbotContext(instanceID string, chat watypes.JID) {
+	key := s.getChatbotContextKey(instanceID, chat)
+	s.chatbotMu.Lock()
+	delete(s.chatbotContexts, key)
+	s.chatbotMu.Unlock()
+}
+
 func extractMessageText(event *events.Message) string {
 	if event.Message == nil {
 		return ""
@@ -2306,6 +2382,39 @@ func (s *Service) handleChatbotFlow(managed *ManagedWhatsAppClient, settings Ins
 	ctx := context.Background()
 	lowerMsg := strings.ToLower(strings.TrimSpace(userMessage))
 
+	// Get or create conversation context
+	chatCtx := s.getChatbotContext(managed.InstanceID, chat)
+
+	// If user is in a flow and types a number, handle as option selection
+	if chatCtx != nil && chatCtx.CurrentFlowID != "" && len(lowerMsg) == 1 && lowerMsg[0] >= '1' && lowerMsg[0] <= '9' {
+		optIndex := int(lowerMsg[0] - '1')
+		for _, flow := range settings.ChatbotFlows {
+			if flow.ID == chatCtx.CurrentFlowID && optIndex < len(flow.Options) {
+				opt := flow.Options[optIndex]
+				if opt.Next != "" {
+					for _, nextFlow := range settings.ChatbotFlows {
+						if nextFlow.ID == opt.Next {
+							s.setChatbotContext(managed.InstanceID, chat, nextFlow.ID, userMessage, nextFlow.Message)
+							s.sendChatMessage(managed, ctx, chat, nextFlow.Message)
+							if len(nextFlow.Options) > 0 {
+								optionsText := "\n\n"
+								for i, o := range nextFlow.Options {
+									optionsText += fmt.Sprintf("*%d.* %s\n", i+1, o.Text)
+								}
+								s.sendChatMessage(managed, ctx, chat, optionsText)
+							}
+							return
+						}
+					}
+				}
+				// No next flow, send option text and clear context
+				s.clearChatbotContext(managed.InstanceID, chat)
+				s.sendChatMessage(managed, ctx, chat, opt.Text)
+				return
+			}
+		}
+	}
+
 	// Find matching flow by trigger
 	for _, flow := range settings.ChatbotFlows {
 		trigger := strings.ToLower(strings.TrimSpace(flow.Trigger))
@@ -2318,6 +2427,7 @@ func (s *Service) handleChatbotFlow(managed *ManagedWhatsAppClient, settings Ins
 			matched = strings.Contains(lowerMsg, trigger)
 		}
 		if matched {
+			s.setChatbotContext(managed.InstanceID, chat, flow.ID, userMessage, flow.Message)
 			s.sendChatMessage(managed, ctx, chat, flow.Message)
 
 			// Send options if available
@@ -2332,17 +2442,16 @@ func (s *Service) handleChatbotFlow(managed *ManagedWhatsAppClient, settings Ins
 		}
 	}
 
-	// Check if user selected an option (number 1-9)
+	// Check if user selected an option (number 1-9) without context
 	if len(lowerMsg) == 1 && lowerMsg[0] >= '1' && lowerMsg[0] <= '9' {
 		optIndex := int(lowerMsg[0] - '1')
-		// Search all flows for matching option
 		for _, flow := range settings.ChatbotFlows {
 			if optIndex < len(flow.Options) {
 				opt := flow.Options[optIndex]
 				if opt.Next != "" {
-					// Find the next flow
 					for _, nextFlow := range settings.ChatbotFlows {
 						if nextFlow.ID == opt.Next {
+							s.setChatbotContext(managed.InstanceID, chat, nextFlow.ID, userMessage, nextFlow.Message)
 							s.sendChatMessage(managed, ctx, chat, nextFlow.Message)
 							if len(nextFlow.Options) > 0 {
 								optionsText := "\n\n"
