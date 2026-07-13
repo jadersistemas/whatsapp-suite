@@ -2028,15 +2028,30 @@ func errorString(err error) string {
 
 // InstanceSettings holds per-instance configuration
 type InstanceSettings struct {
-	RejectCalls       bool   `json:"rejectCalls"`
-	RejectCallMessage string `json:"rejectCallMessage"`
-	IgnoreGroups      bool   `json:"ignoreGroups"`
-	AlwaysOnline      bool   `json:"alwaysOnline"`
-	ReadMessages      bool   `json:"readMessages"`
-	SyncFullHistory   bool   `json:"syncFullHistory"`
-	ViewStatus        bool   `json:"viewStatus"`
-	AutoReply         bool   `json:"autoReply"`
-	AutoReplyMessage  string `json:"autoReplyMessage"`
+	RejectCalls       bool           `json:"rejectCalls"`
+	RejectCallMessage string         `json:"rejectCallMessage"`
+	IgnoreGroups      bool           `json:"ignoreGroups"`
+	AlwaysOnline      bool           `json:"alwaysOnline"`
+	ReadMessages      bool           `json:"readMessages"`
+	SyncFullHistory   bool           `json:"syncFullHistory"`
+	ViewStatus        bool           `json:"viewStatus"`
+	AutoReply         bool           `json:"autoReply"`
+	AutoReplyMessage  string         `json:"autoReplyMessage"`
+	ChatbotEnabled    bool           `json:"chatbotEnabled"`
+	ChatbotFlows      []ChatbotFlow  `json:"chatbotFlows"`
+}
+
+type ChatbotFlow struct {
+	ID      string            `json:"id"`
+	Trigger string            `json:"trigger"`
+	Message string            `json:"message"`
+	Options []ChatbotOption   `json:"options"`
+}
+
+type ChatbotOption struct {
+	ID   string `json:"id"`
+	Text string `json:"text"`
+	Next string `json:"next"`
 }
 
 func (s *Service) getInstanceSettings(managed *ManagedWhatsAppClient) InstanceSettings {
@@ -2116,6 +2131,45 @@ func (s *Service) parseSettings(attrs []byte, settings *InstanceSettings) {
 	}
 	if v, ok := raw["autoReplyMessage"].(string); ok && v != "" {
 		settings.AutoReplyMessage = v
+	}
+	if v, ok := raw["chatbot"].(map[string]any); ok {
+		if enabled, ok := v["enabled"].(bool); ok {
+			settings.ChatbotEnabled = enabled
+		}
+		if flows, ok := v["flows"].([]any); ok {
+			for _, flow := range flows {
+				if flowMap, ok := flow.(map[string]any); ok {
+					f := ChatbotFlow{}
+					if id, ok := flowMap["id"].(string); ok {
+						f.ID = id
+					}
+					if trigger, ok := flowMap["trigger"].(string); ok {
+						f.Trigger = trigger
+					}
+					if message, ok := flowMap["message"].(string); ok {
+						f.Message = message
+					}
+					if options, ok := flowMap["options"].([]any); ok {
+						for _, opt := range options {
+							if optMap, ok := opt.(map[string]any); ok {
+								o := ChatbotOption{}
+								if id, ok := optMap["id"].(string); ok {
+									o.ID = id
+								}
+								if text, ok := optMap["text"].(string); ok {
+									o.Text = text
+								}
+								if next, ok := optMap["next"].(string); ok {
+									o.Next = next
+								}
+								f.Options = append(f.Options, o)
+							}
+						}
+					}
+					settings.ChatbotFlows = append(settings.ChatbotFlows, f)
+				}
+			}
+		}
 	}
 }
 
@@ -2205,39 +2259,145 @@ func (s *Service) handleInstanceSettings(managed *ManagedWhatsAppClient, event *
 		}()
 	}
 
+	// Skip if message is from self
+	if event.Info.IsFromMe {
+		return
+	}
+
+	// Chatbot - check for matching flow
+	if settings.ChatbotEnabled && len(settings.ChatbotFlows) > 0 && !event.Info.Chat.IsEmpty() {
+		msgText := extractMessageText(event)
+		if msgText != "" {
+			go func() {
+				s.handleChatbotFlow(managed, settings, event.Info.Chat, msgText)
+			}()
+			return
+		}
+	}
+
 	// Auto reply - only for incoming messages (not from self)
-	if settings.AutoReply && !event.Info.IsFromMe && !event.Info.Chat.IsEmpty() {
+	if settings.AutoReply && !event.Info.Chat.IsEmpty() {
 		go func() {
-			// Wait a bit before sending auto-reply
-			time.Sleep(2 * time.Second)
-
-			// Send presence first (typing indicator)
-			_ = managed.Client.SendChatPresence(ctx, event.Info.Chat, watypes.ChatPresenceComposing, watypes.ChatPresenceMediaText)
-			time.Sleep(1 * time.Second)
-
-			msg := &waE2E.Message{
-				ExtendedTextMessage: &waE2E.ExtendedTextMessage{
-					Text: proto.String(settings.AutoReplyMessage),
-				},
-			}
-			_, sendErr := managed.Client.SendMessage(ctx, event.Info.Chat, msg, whatsmeow.SendRequestExtra{})
-			if sendErr != nil {
-				s.logger.Warn().Err(sendErr).
-					Str("instanceName", managed.InstanceName).
-					Str("chat", event.Info.Chat.String()).
-					Msg("failed to send auto-reply")
-			} else {
-				s.logger.Info().
-					Str("instanceName", managed.InstanceName).
-					Str("chat", event.Info.Chat.String()).
-					Str("message", settings.AutoReplyMessage).
-					Msg("auto-reply sent")
-			}
-
-			// Send paused presence
-			_ = managed.Client.SendChatPresence(ctx, event.Info.Chat, watypes.ChatPresencePaused, watypes.ChatPresenceMediaText)
+			s.sendAutoReply(managed, settings, event.Info.Chat)
 		}()
 	}
+}
+
+func extractMessageText(event *events.Message) string {
+	if event.Message == nil {
+		return ""
+	}
+	if event.Message.ExtendedTextMessage != nil && event.Message.ExtendedTextMessage.Text != nil {
+		return *event.Message.ExtendedTextMessage.Text
+	}
+	if event.Message.Conversation != nil {
+		return *event.Message.Conversation
+	}
+	return ""
+}
+
+func (s *Service) handleChatbotFlow(managed *ManagedWhatsAppClient, settings InstanceSettings, chat watypes.JID, userMessage string) {
+	ctx := context.Background()
+	lowerMsg := strings.ToLower(strings.TrimSpace(userMessage))
+
+	// Find matching flow by trigger
+	for _, flow := range settings.ChatbotFlows {
+		trigger := strings.ToLower(strings.TrimSpace(flow.Trigger))
+		if trigger == "" || lowerMsg == trigger || strings.Contains(lowerMsg, trigger) {
+			s.sendChatMessage(managed, ctx, chat, flow.Message)
+
+			// Send options if available
+			if len(flow.Options) > 0 {
+				optionsText := "\n\n"
+				for i, opt := range flow.Options {
+					optionsText += fmt.Sprintf("*%d.* %s\n", i+1, opt.Text)
+				}
+				s.sendChatMessage(managed, ctx, chat, optionsText)
+			}
+			return
+		}
+	}
+
+	// Check if user selected an option (number 1-9)
+	if len(lowerMsg) == 1 && lowerMsg[0] >= '1' && lowerMsg[0] <= '9' {
+		optIndex := int(lowerMsg[0] - '1')
+		// Search all flows for matching option
+		for _, flow := range settings.ChatbotFlows {
+			if optIndex < len(flow.Options) {
+				opt := flow.Options[optIndex]
+				if opt.Next != "" {
+					// Find the next flow
+					for _, nextFlow := range settings.ChatbotFlows {
+						if nextFlow.ID == opt.Next {
+							s.sendChatMessage(managed, ctx, chat, nextFlow.Message)
+							if len(nextFlow.Options) > 0 {
+								optionsText := "\n\n"
+								for i, o := range nextFlow.Options {
+									optionsText += fmt.Sprintf("*%d.* %s\n", i+1, o.Text)
+								}
+								s.sendChatMessage(managed, ctx, chat, optionsText)
+							}
+							return
+						}
+					}
+				}
+				s.sendChatMessage(managed, ctx, chat, opt.Text)
+				return
+			}
+		}
+	}
+
+	// No match - send auto reply if enabled
+	if settings.AutoReply {
+		s.sendAutoReply(managed, settings, chat)
+	}
+}
+
+func (s *Service) sendChatMessage(managed *ManagedWhatsAppClient, ctx context.Context, chat watypes.JID, text string) {
+	_ = managed.Client.SendChatPresence(ctx, chat, watypes.ChatPresenceComposing, watypes.ChatPresenceMediaText)
+	time.Sleep(1 * time.Second)
+
+	msg := &waE2E.Message{
+		ExtendedTextMessage: &waE2E.ExtendedTextMessage{
+			Text: proto.String(text),
+		},
+	}
+	_, err := managed.Client.SendMessage(ctx, chat, msg, whatsmeow.SendRequestExtra{})
+	if err != nil {
+		s.logger.Warn().Err(err).
+			Str("instanceName", managed.InstanceName).
+			Str("chat", chat.String()).
+			Msg("failed to send chatbot message")
+	}
+	_ = managed.Client.SendChatPresence(ctx, chat, watypes.ChatPresencePaused, watypes.ChatPresenceMediaText)
+}
+
+func (s *Service) sendAutoReply(managed *ManagedWhatsAppClient, settings InstanceSettings, chat watypes.JID) {
+	ctx := context.Background()
+	time.Sleep(2 * time.Second)
+
+	_ = managed.Client.SendChatPresence(ctx, chat, watypes.ChatPresenceComposing, watypes.ChatPresenceMediaText)
+	time.Sleep(1 * time.Second)
+
+	msg := &waE2E.Message{
+		ExtendedTextMessage: &waE2E.ExtendedTextMessage{
+			Text: proto.String(settings.AutoReplyMessage),
+		},
+	}
+	_, sendErr := managed.Client.SendMessage(ctx, chat, msg, whatsmeow.SendRequestExtra{})
+	if sendErr != nil {
+		s.logger.Warn().Err(sendErr).
+			Str("instanceName", managed.InstanceName).
+			Str("chat", chat.String()).
+			Msg("failed to send auto-reply")
+	} else {
+		s.logger.Info().
+			Str("instanceName", managed.InstanceName).
+			Str("chat", chat.String()).
+			Str("message", settings.AutoReplyMessage).
+			Msg("auto-reply sent")
+	}
+	_ = managed.Client.SendChatPresence(ctx, chat, watypes.ChatPresencePaused, watypes.ChatPresenceMediaText)
 }
 
 // SyncFullHistory is called when instance connects to sync history

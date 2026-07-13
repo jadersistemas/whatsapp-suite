@@ -23,15 +23,34 @@ type SetWebhookRequest struct {
 }
 
 type UpdateInstanceSettingsRequest struct {
-	RejectCalls        *bool   `json:"rejectCalls,omitempty"`
-	RejectCallMessage  *string `json:"rejectCallMessage,omitempty"`
-	IgnoreGroups       *bool   `json:"ignoreGroups,omitempty"`
-	AlwaysOnline       *bool   `json:"alwaysOnline,omitempty"`
-	ReadMessages       *bool   `json:"readMessages,omitempty"`
-	SyncFullHistory    *bool   `json:"syncFullHistory,omitempty"`
-	ViewStatus         *bool   `json:"viewStatus,omitempty"`
-	AutoReply          *bool   `json:"autoReply,omitempty"`
-	AutoReplyMessage   *string `json:"autoReplyMessage,omitempty"`
+	RejectCalls        *bool              `json:"rejectCalls,omitempty"`
+	RejectCallMessage  *string            `json:"rejectCallMessage,omitempty"`
+	IgnoreGroups       *bool              `json:"ignoreGroups,omitempty"`
+	AlwaysOnline       *bool              `json:"alwaysOnline,omitempty"`
+	ReadMessages       *bool              `json:"readMessages,omitempty"`
+	SyncFullHistory    *bool              `json:"syncFullHistory,omitempty"`
+	ViewStatus         *bool              `json:"viewStatus,omitempty"`
+	AutoReply          *bool              `json:"autoReply,omitempty"`
+	AutoReplyMessage   *string            `json:"autoReplyMessage,omitempty"`
+	Chatbot            *ChatbotConfig     `json:"chatbot,omitempty"`
+}
+
+type ChatbotConfig struct {
+	Enabled bool            `json:"enabled"`
+	Flows   []ChatbotFlow   `json:"flows"`
+}
+
+type ChatbotFlow struct {
+	ID       string          `json:"id"`
+	Trigger  string          `json:"trigger"`
+	Message  string          `json:"message"`
+	Options  []ChatbotOption `json:"options"`
+}
+
+type ChatbotOption struct {
+	ID      string `json:"id"`
+	Text    string `json:"text"`
+	Next    string `json:"next"`
 }
 
 func (r *SetWebhookRequest) UnmarshalJSON(data []byte) error {

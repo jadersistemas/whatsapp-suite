@@ -177,6 +177,9 @@ func (h *InstanceHandler) UpdateSettings(c fiber.Ctx) error {
 	if body.AutoReplyMessage != nil {
 		attrs["autoReplyMessage"] = *body.AutoReplyMessage
 	}
+	if body.Chatbot != nil {
+		attrs["chatbot"] = body.Chatbot
+	}
 
 	newAttrs, _ := json.Marshal(attrs)
 

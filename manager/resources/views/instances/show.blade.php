@@ -319,6 +319,77 @@
                                     placeholder="Mensagem automática">
                             </div>
                         </div>
+
+                        {{-- Chatbot --}}
+                        <div class="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                            <label class="flex items-center justify-between cursor-pointer">
+                                <div class="flex items-center">
+                                    <i class="fas fa-robot mr-3 text-violet-500"></i>
+                                    <div>
+                                        <span class="font-medium text-gray-800 dark:text-white">Chatbot</span>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400">Respostas automáticas com menus e camadas</p>
+                                    </div>
+                                </div>
+                                <input type="checkbox" name="chatbotEnabled" value="1" class="w-5 h-5 text-violet-600 rounded focus:ring-violet-500"
+                                    {{ ($instance->settings['chatbotEnabled'] ?? false) ? 'checked' : '' }}
+                                    onchange="toggleChatbot()">
+                            </label>
+
+                            <div id="chatbot-container" class="mt-3 {{ ($instance->settings['chatbotEnabled'] ?? false) ? '' : 'hidden' }}">
+                                <div class="flex justify-between items-center mb-2">
+                                    <label class="text-xs text-gray-500 dark:text-gray-400">Fluxos (camadas):</label>
+                                    <button type="button" onclick="addChatbotFlow()" class="text-xs text-violet-600 hover:text-violet-700">
+                                        <i class="fas fa-plus mr-1"></i> Adicionar Fluxo
+                                    </button>
+                                </div>
+                                <div id="chatbot-flows" class="space-y-3">
+                                    @if(!empty($instance->settings['chatbotFlows']))
+                                        @foreach($instance->settings['chatbotFlows'] as $flowIndex => $flow)
+                                            <div class="chatbot-flow bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-600">
+                                                <div class="flex justify-between items-center mb-2">
+                                                    <span class="text-xs font-bold text-violet-600 dark:text-violet-400">Fluxo {{ $flowIndex + 1 }}</span>
+                                                    <button type="button" onclick="removeChatbotFlow(this)" class="text-red-500 hover:text-red-700 text-xs">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                                <input type="text" name="chatbotFlows[{{ $flowIndex }}][trigger]" value="{{ $flow['trigger'] ?? '' }}"
+                                                    class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white mb-2"
+                                                    placeholder="Gatilho (ex: menu, ajuda, 1)">
+                                                <textarea name="chatbotFlows[{{ $flowIndex }}][message]" rows="2"
+                                                    class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white mb-2"
+                                                    placeholder="Mensagem de resposta">{{ $flow['message'] ?? '' }}</textarea>
+                                                <div class="flex justify-between items-center mb-1">
+                                                    <span class="text-xs text-gray-500 dark:text-gray-400">Opções:</span>
+                                                    <button type="button" onclick="addChatbotOption(this)" class="text-xs text-violet-600 hover:text-violet-700">
+                                                        <i class="fas fa-plus"></i>
+                                                    </button>
+                                                </div>
+                                                <div class="chatbot-options space-y-1">
+                                                    @if(!empty($flow['options']))
+                                                        @foreach($flow['options'] as $optIndex => $opt)
+                                                            <div class="flex gap-1 items-center chatbot-option">
+                                                                <input type="text" name="chatbotFlows[{{ $flowIndex }}][options][{{ $optIndex }}][id]" value="{{ $opt['id'] ?? '' }}"
+                                                                    class="w-16 px-1 py-0.5 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                                                    placeholder="ID">
+                                                                <input type="text" name="chatbotFlows[{{ $flowIndex }}][options][{{ $optIndex }}][text]" value="{{ $opt['text'] ?? '' }}"
+                                                                    class="flex-1 px-1 py-0.5 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                                                    placeholder="Texto">
+                                                                <input type="text" name="chatbotFlows[{{ $flowIndex }}][options][{{ $optIndex }}][next]" value="{{ $opt['next'] ?? '' }}"
+                                                                    class="w-20 px-1 py-0.5 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                                                    placeholder="Próximo ID">
+                                                                <button type="button" onclick="removeChatbotOption(this)" class="text-red-500 hover:text-red-700 text-xs">
+                                                                    <i class="fas fa-times"></i>
+                                                                </button>
+                                                            </div>
+                                                        @endforeach
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div id="settings-result" class="hidden mt-4"></div>
@@ -474,6 +545,66 @@
         });
     }
 
+    function toggleChatbot() {
+        const checkbox = document.querySelector('input[name="chatbotEnabled"]');
+        const container = document.getElementById('chatbot-container');
+        if (checkbox.checked) {
+            container.classList.remove('hidden');
+        } else {
+            container.classList.add('hidden');
+        }
+    }
+
+    let flowCounter = document.querySelectorAll('.chatbot-flow').length;
+
+    function addChatbotFlow() {
+        const container = document.getElementById('chatbot-flows');
+        const flowHtml = `
+            <div class="chatbot-flow bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-600">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-violet-600 dark:text-violet-400">Fluxo ${flowCounter + 1}</span>
+                    <button type="button" onclick="removeChatbotFlow(this)" class="text-red-500 hover:text-red-700 text-xs">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+                <input type="text" name="chatbotFlows[${flowCounter}][trigger]" class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white mb-2" placeholder="Gatilho (ex: menu, ajuda, 1)">
+                <textarea name="chatbotFlows[${flowCounter}][message]" rows="2" class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white mb-2" placeholder="Mensagem de resposta"></textarea>
+                <div class="flex justify-between items-center mb-1">
+                    <span class="text-xs text-gray-500 dark:text-gray-400">Opções:</span>
+                    <button type="button" onclick="addChatbotOption(this)" class="text-xs text-violet-600 hover:text-violet-700"><i class="fas fa-plus"></i></button>
+                </div>
+                <div class="chatbot-options space-y-1"></div>
+            </div>
+        `;
+        container.insertAdjacentHTML('beforeend', flowHtml);
+        flowCounter++;
+    }
+
+    function removeChatbotFlow(btn) {
+        btn.closest('.chatbot-flow').remove();
+    }
+
+    function addChatbotOption(btn) {
+        const flow = btn.closest('.chatbot-flow');
+        const container = flow.querySelector('.chatbot-options');
+        const flowIndex = Array.from(document.querySelectorAll('.chatbot-flow')).indexOf(flow);
+        const optIndex = container.querySelectorAll('.chatbot-option').length;
+
+        const optHtml = `
+            <div class="flex gap-1 items-center chatbot-option">
+                <input type="text" name="chatbotFlows[${flowIndex}][options][${optIndex}][id]" class="w-16 px-1 py-0.5 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder="ID">
+                <input type="text" name="chatbotFlows[${flowIndex}][options][${optIndex}][text]" class="flex-1 px-1 py-0.5 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder="Texto">
+                <input type="text" name="chatbotFlows[${flowIndex}][options][${optIndex}][next]" class="w-20 px-1 py-0.5 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder="Próximo ID">
+                <button type="button" onclick="removeChatbotOption(this)" class="text-red-500 hover:text-red-700 text-xs"><i class="fas fa-times"></i></button>
+            </div>
+        `;
+        container.insertAdjacentHTML('beforeend', optHtml);
+    }
+
+    function removeChatbotOption(btn) {
+        btn.closest('.chatbot-option').remove();
+    }
+
     async function saveSettings(e) {
         e.preventDefault();
         const form = document.getElementById('settings-form');
@@ -491,6 +622,25 @@
 
         // Get auto reply message
         settings.autoReplyMessage = formData.get('autoReplyMessage') || 'Olá! No momento não posso atender, mas deixe sua mensagem que retorno em breve!';
+
+        // Get chatbot config
+        const chatbotEnabled = formData.has('chatbotEnabled');
+        const flows = [];
+        document.querySelectorAll('.chatbot-flow').forEach((flow, flowIdx) => {
+            const trigger = flow.querySelector('input[name*="[trigger]"]').value;
+            const message = flow.querySelector('textarea[name*="[message]"]').value;
+            const options = [];
+            flow.querySelectorAll('.chatbot-option').forEach((opt) => {
+                const inputs = opt.querySelectorAll('input');
+                options.push({
+                    id: inputs[0].value,
+                    text: inputs[1].value,
+                    next: inputs[2].value,
+                });
+            });
+            flows.push({ id: `flow_${flowIdx}`, trigger, message, options });
+        });
+        settings.chatbot = { enabled: chatbotEnabled, flows };
 
         result.className = 'mt-4 p-3 rounded-lg bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300';
         result.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Salvando...';

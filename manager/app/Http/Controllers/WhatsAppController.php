@@ -445,6 +445,9 @@ class WhatsAppController extends Controller
             'viewStatus' => 'nullable|boolean',
             'autoReply' => 'nullable|boolean',
             'autoReplyMessage' => 'nullable|string|max:500',
+            'chatbot' => 'nullable|array',
+            'chatbot.enabled' => 'nullable|boolean',
+            'chatbot.flows' => 'nullable|array',
         ]);
 
         $settings = [
@@ -458,6 +461,14 @@ class WhatsAppController extends Controller
             'autoReply' => $request->boolean('autoReply'),
             'autoReplyMessage' => $request->input('autoReplyMessage', 'Olá! No momento não posso atender, mas deixe sua mensagem que retorno em breve!'),
         ];
+
+        // Handle chatbot config
+        if ($request->has('chatbot')) {
+            $settings['chatbot'] = [
+                'enabled' => $request->boolean('chatbot.enabled'),
+                'flows' => $request->input('chatbot.flows', []),
+            ];
+        }
 
         // Update local database
         $instance = WhatsAppInstance::where('name', $name)->first();
