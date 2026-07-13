@@ -168,6 +168,12 @@ func (h *InstanceHandler) UpdateSettings(c fiber.Ctx) error {
 	if body.ViewStatus != nil {
 		attrs["viewStatus"] = *body.ViewStatus
 	}
+	if body.AutoReply != nil {
+		attrs["autoReply"] = *body.AutoReply
+	}
+	if body.AutoReplyMessage != nil {
+		attrs["autoReplyMessage"] = *body.AutoReplyMessage
+	}
 
 	newAttrs, _ := json.Marshal(attrs)
 

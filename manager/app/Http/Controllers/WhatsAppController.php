@@ -443,6 +443,8 @@ class WhatsAppController extends Controller
             'readMessages' => 'nullable|boolean',
             'syncFullHistory' => 'nullable|boolean',
             'viewStatus' => 'nullable|boolean',
+            'autoReply' => 'nullable|boolean',
+            'autoReplyMessage' => 'nullable|string|max:500',
         ]);
 
         $settings = [
@@ -453,6 +455,8 @@ class WhatsAppController extends Controller
             'readMessages' => $request->boolean('readMessages'),
             'syncFullHistory' => $request->boolean('syncFullHistory'),
             'viewStatus' => $request->boolean('viewStatus'),
+            'autoReply' => $request->boolean('autoReply'),
+            'autoReplyMessage' => $request->input('autoReplyMessage', 'Olá! No momento não posso atender, mas deixe sua mensagem que retorno em breve!'),
         ];
 
         // Update local database

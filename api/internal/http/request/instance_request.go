@@ -30,6 +30,8 @@ type UpdateInstanceSettingsRequest struct {
 	ReadMessages       *bool   `json:"readMessages,omitempty"`
 	SyncFullHistory    *bool   `json:"syncFullHistory,omitempty"`
 	ViewStatus         *bool   `json:"viewStatus,omitempty"`
+	AutoReply          *bool   `json:"autoReply,omitempty"`
+	AutoReplyMessage   *string `json:"autoReplyMessage,omitempty"`
 }
 
 func (r *SetWebhookRequest) UnmarshalJSON(data []byte) error {

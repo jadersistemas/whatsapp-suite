@@ -280,6 +280,27 @@
                             <input type="checkbox" name="viewStatus" value="1" class="w-5 h-5 text-teal-600 rounded focus:ring-teal-500"
                                 {{ ($instance->settings['viewStatus'] ?? false) ? 'checked' : '' }}>
                         </label>
+
+                        <div class="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                            <label class="flex items-center justify-between cursor-pointer">
+                                <div class="flex items-center">
+                                    <i class="fas fa-reply mr-3 text-cyan-500"></i>
+                                    <div>
+                                        <span class="font-medium text-gray-800 dark:text-white">Resposta Automática</span>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400">Envia resposta automática para mensagens recebidas</p>
+                                    </div>
+                                </div>
+                                <input type="checkbox" name="autoReply" value="1" class="w-5 h-5 text-cyan-600 rounded focus:ring-cyan-500"
+                                    {{ ($instance->settings['autoReply'] ?? false) ? 'checked' : '' }}
+                                    onchange="toggleAutoReplyMessage()">
+                            </label>
+                            <div id="auto-reply-message-container" class="mt-3 {{ ($instance->settings['autoReply'] ?? false) ? '' : 'hidden' }}">
+                                <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Mensagem automática:</label>
+                                <input type="text" name="autoReplyMessage" value="{{ $instance->settings['autoReplyMessage'] ?? 'Olá! No momento não posso atender, mas deixe sua mensagem que retorno em breve!' }}"
+                                    class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-cyan-500"
+                                    placeholder="Mensagem automática">
+                            </div>
+                        </div>
                     </div>
 
                     <div id="settings-result" class="hidden mt-4"></div>
@@ -397,6 +418,16 @@
         }
     }
 
+    function toggleAutoReplyMessage() {
+        const checkbox = document.querySelector('input[name="autoReply"]');
+        const container = document.getElementById('auto-reply-message-container');
+        if (checkbox.checked) {
+            container.classList.remove('hidden');
+        } else {
+            container.classList.add('hidden');
+        }
+    }
+
     async function saveSettings(e) {
         e.preventDefault();
         const form = document.getElementById('settings-form');
@@ -405,12 +436,15 @@
         const settings = {};
 
         // Get all checkbox values
-        ['rejectCalls', 'ignoreGroups', 'alwaysOnline', 'readMessages', 'syncFullHistory', 'viewStatus'].forEach(key => {
+        ['rejectCalls', 'ignoreGroups', 'alwaysOnline', 'readMessages', 'syncFullHistory', 'viewStatus', 'autoReply'].forEach(key => {
             settings[key] = formData.has(key);
         });
 
         // Get reject call message
         settings.rejectCallMessage = formData.get('rejectCallMessage') || 'Esse número não recebe ligações, por favor envie um texto ou áudio!';
+
+        // Get auto reply message
+        settings.autoReplyMessage = formData.get('autoReplyMessage') || 'Olá! No momento não posso atender, mas deixe sua mensagem que retorno em breve!';
 
         result.className = 'mt-4 p-3 rounded-lg bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300';
         result.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Salvando...';

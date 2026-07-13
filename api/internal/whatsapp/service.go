@@ -2034,11 +2034,14 @@ type InstanceSettings struct {
 	ReadMessages      bool   `json:"readMessages"`
 	SyncFullHistory   bool   `json:"syncFullHistory"`
 	ViewStatus        bool   `json:"viewStatus"`
+	AutoReply         bool   `json:"autoReply"`
+	AutoReplyMessage  string `json:"autoReplyMessage"`
 }
 
 func (s *Service) getInstanceSettings(managed *ManagedWhatsAppClient) InstanceSettings {
 	var settings InstanceSettings
 	settings.RejectCallMessage = "Esse número não recebe ligações, por favor envie um texto ou áudio!"
+	settings.AutoReplyMessage = "Olá! No momento não posso atender, mas deixe sua mensagem que retorno em breve!"
 	instanceID := mustAtoi32(managed.InstanceID)
 	instance, err := s.instances.FindByID(context.Background(), instanceID)
 	if err != nil || len(instance.Instance.ExternalAttributes) == 0 {
@@ -2069,6 +2072,12 @@ func (s *Service) getInstanceSettings(managed *ManagedWhatsAppClient) InstanceSe
 	if v, ok := attrs["viewStatus"].(bool); ok {
 		settings.ViewStatus = v
 	}
+	if v, ok := attrs["autoReply"].(bool); ok {
+		settings.AutoReply = v
+	}
+	if v, ok := attrs["autoReplyMessage"].(string); ok && v != "" {
+		settings.AutoReplyMessage = v
+	}
 	return settings
 }
 
@@ -2082,7 +2091,8 @@ func (s *Service) handleCallOffer(managed *ManagedWhatsAppClient, event *events.
 	if callID == "" {
 		return
 	}
-	// Reject the call
+
+	// Reject the call (sends reject signal)
 	err := managed.Client.RejectCall(ctx, event.From, callID)
 	if err != nil {
 		s.logger.Warn().Err(err).
@@ -2096,9 +2106,12 @@ func (s *Service) handleCallOffer(managed *ManagedWhatsAppClient, event *events.
 			Msg("call rejected by instance setting")
 	}
 
-	// Send rejection message
+	// Send rejection message after a short delay
 	if settings.RejectCallMessage != "" && !event.From.IsEmpty() {
 		go func() {
+			// Wait a bit for the call to be fully rejected
+			time.Sleep(1 * time.Second)
+
 			msg := &waE2E.Message{
 				ExtendedTextMessage: &waE2E.ExtendedTextMessage{
 					Text: proto.String(settings.RejectCallMessage),
@@ -2151,6 +2164,40 @@ func (s *Service) handleInstanceSettings(managed *ManagedWhatsAppClient, event *
 	if settings.AlwaysOnline && !event.Info.Chat.IsEmpty() {
 		go func() {
 			_ = managed.Client.SendPresence(ctx, watypes.PresenceAvailable)
+		}()
+	}
+
+	// Auto reply - only for incoming messages (not from self)
+	if settings.AutoReply && !event.Info.IsFromMe && !event.Info.Chat.IsEmpty() {
+		go func() {
+			// Wait a bit before sending auto-reply
+			time.Sleep(2 * time.Second)
+
+			// Send presence first (typing indicator)
+			_ = managed.Client.SendChatPresence(ctx, event.Info.Chat, watypes.ChatPresenceComposing, watypes.ChatPresenceMediaText)
+			time.Sleep(1 * time.Second)
+
+			msg := &waE2E.Message{
+				ExtendedTextMessage: &waE2E.ExtendedTextMessage{
+					Text: proto.String(settings.AutoReplyMessage),
+				},
+			}
+			_, sendErr := managed.Client.SendMessage(ctx, event.Info.Chat, msg, whatsmeow.SendRequestExtra{})
+			if sendErr != nil {
+				s.logger.Warn().Err(sendErr).
+					Str("instanceName", managed.InstanceName).
+					Str("chat", event.Info.Chat.String()).
+					Msg("failed to send auto-reply")
+			} else {
+				s.logger.Info().
+					Str("instanceName", managed.InstanceName).
+					Str("chat", event.Info.Chat.String()).
+					Str("message", settings.AutoReplyMessage).
+					Msg("auto-reply sent")
+			}
+
+			// Send paused presence
+			_ = managed.Client.SendChatPresence(ctx, event.Info.Chat, watypes.ChatPresencePaused, watypes.ChatPresenceMediaText)
 		}()
 	}
 }
