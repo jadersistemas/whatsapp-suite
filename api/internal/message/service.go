@@ -219,35 +219,38 @@ func (s *MessageService) SendButtons(ctx context.Context, instanceName string, b
 		Build: func(ctx context.Context, client *whatsmeow.Client, quoted *wae2e.ContextInfo) (*wae2e.Message, string, map[string]any, error) {
 			_ = ctx
 			_ = client
-			protoButtons := make([]*wae2e.TemplateButton, len(buttons))
+			hydratedButtons := make([]*wae2e.HydratedTemplateButton, len(buttons))
 			for i, btn := range buttons {
-				protoBtn := &wae2e.TemplateButton{
+				hydratedBtn := &wae2e.HydratedTemplateButton{
 					Index: proto.Uint32(uint32(i)),
 				}
 				switch btn.Type {
 				case "quick_reply":
-					protoBtn.Type = &wae2e.TemplateButton_QuickReply{
-						QuickReply: &wae2e.TemplateButton_QuickReplyButton{
-							ID:   proto.String(btn.ID),
-							Text: proto.String(btn.Title),
+					hydratedBtn.HydratedButton = &wae2e.HydratedTemplateButton_QuickReplyButton{
+						QuickReplyButton: &wae2e.HydratedTemplateButton_HydratedQuickReplyButton{
+							DisplayText: proto.String(btn.Title),
+							ID:          proto.String(btn.ID),
 						},
 					}
 				case "url":
-					protoBtn.Type = &wae2e.TemplateButton_URL{
-						URL: &wae2e.TemplateButton_URLButton{
-							Text:   proto.String(btn.Title),
-							Url:    proto.String(btn.URL),
-							Layout: wae2e.TemplateButton_URL.Enum(),
+					hydratedBtn.HydratedButton = &wae2e.HydratedTemplateButton_UrlButton{
+						UrlButton: &wae2e.HydratedTemplateButton_HydratedURLButton{
+							DisplayText: proto.String(btn.Title),
+							URL:         proto.String(btn.URL),
 						},
 					}
 				}
-				protoButtons[i] = protoBtn
+				hydratedButtons[i] = hydratedBtn
 			}
 
 			msg := &wae2e.Message{
 				TemplateMessage: &wae2e.TemplateMessage{
-					Text:       proto.String(text),
-					Buttons:    protoButtons,
+					Format: &wae2e.TemplateMessage_HydratedFourRowTemplate_{
+						HydratedFourRowTemplate: &wae2e.TemplateMessage_HydratedFourRowTemplate{
+							HydratedContentText: proto.String(text),
+							HydratedButtons:     hydratedButtons,
+						},
+					},
 					ContextInfo: quoted,
 				},
 			}
