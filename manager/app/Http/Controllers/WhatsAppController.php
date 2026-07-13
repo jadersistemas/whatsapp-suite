@@ -85,6 +85,30 @@ class WhatsAppController extends Controller
         $status = $this->api->getConnectionState($name);
         $webhook = $this->api->getWebhook($name);
 
+        // Sync instance details from API
+        if ($status['success'] && isset($status['data'])) {
+            $data = $status['data'];
+            $updates = [];
+
+            if (isset($data['state'])) {
+                $updates['status'] = $data['state'];
+            }
+
+            // Get owner JID from connection state
+            if (isset($data['ownerJid']) && $data['ownerJid']) {
+                $updates['owner_jid'] = $data['ownerJid'];
+                // Extract phone number from JID
+                $phone = explode('@', $data['ownerJid'])[0];
+                if ($phone) {
+                    $updates['phone'] = $phone;
+                }
+            }
+
+            if (!empty($updates)) {
+                $instance->update($updates);
+            }
+        }
+
         return view('instances.show', compact('instance', 'status', 'webhook'));
     }
 
