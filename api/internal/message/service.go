@@ -212,59 +212,41 @@ func (s *MessageService) SendButtons(ctx context.Context, instanceName string, b
 	if err != nil {
 		return SendResult{}, err
 	}
+
+	// Build formatted text with buttons
+	var sb strings.Builder
+	sb.WriteString(text)
+	sb.WriteString("\n\n")
+
+	for i, btn := range buttons {
+		sb.WriteString(fmt.Sprintf("*%d. %s*", i+1, btn.Title))
+		if btn.Type == "url" && btn.URL != "" {
+			sb.WriteString(fmt.Sprintf("\n   %s", btn.URL))
+		}
+		sb.WriteString("\n")
+	}
+
+	fullText := sb.String()
+
 	return s.send(ctx, instanceName, bearerToken, outboundRequest{
 		Recipient: recipientInput(input.Number, input.Chat, input.Recipient),
 		Options:   input.Options,
-		Kind:      KindButtons,
+		Kind:      KindText,
 		Build: func(ctx context.Context, client *whatsmeow.Client, quoted *wae2e.ContextInfo) (*wae2e.Message, string, map[string]any, error) {
 			_ = ctx
 			_ = client
-
-			nativeButtons := make([]*wae2e.InteractiveMessage_NativeFlowMessage_NativeFlowButton, len(buttons))
-			for i, btn := range buttons {
-				params := map[string]any{
-					"display_text": btn.Title,
-				}
-				switch btn.Type {
-				case "quick_reply":
-					params["id"] = btn.ID
-				case "url":
-					params["url"] = btn.URL
-				}
-				paramsJSON, _ := json.Marshal(params)
-				nativeButtons[i] = &wae2e.InteractiveMessage_NativeFlowMessage_NativeFlowButton{
-					Name:             proto.String(btn.Type),
-					ButtonParamsJSON: proto.String(string(paramsJSON)),
-				}
-			}
-
-			paramsJSON, _ := json.Marshal(map[string]any{
-				"buttons": nativeButtons,
-			})
-
-			msg := &wae2e.Message{
-				InteractiveMessage: &wae2e.InteractiveMessage{
-					Body: &wae2e.InteractiveMessage_Body{
-						Text: proto.String(text),
-					},
-					InteractiveMessage: &wae2e.InteractiveMessage_NativeFlowMessage_{
-						NativeFlowMessage: &wae2e.InteractiveMessage_NativeFlowMessage{
-							Buttons:           nativeButtons,
-							MessageParamsJSON: proto.String(string(paramsJSON)),
-							MessageVersion:    proto.Int32(2),
-						},
-					},
-					ContextInfo: quoted,
-				},
-			}
+			msg := &wae2e.Message{ExtendedTextMessage: &wae2e.ExtendedTextMessage{
+				Text:        proto.String(fullText),
+				ContextInfo: quoted,
+			}}
 			content := map[string]any{
-				"text":    text,
+				"text":    fullText,
 				"buttons": buttons,
 			}
 			if quoted != nil {
 				content["contextInfo"] = contextInfoContent(quoted)
 			}
-			return msg, "interactiveMessage", content, nil
+			return msg, "extendedTextMessage", content, nil
 		},
 	})
 }
