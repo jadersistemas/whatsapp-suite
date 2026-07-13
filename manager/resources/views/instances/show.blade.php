@@ -352,9 +352,16 @@
                                                         <i class="fas fa-trash"></i>
                                                     </button>
                                                 </div>
-                                                <input type="text" name="chatbotFlows[{{ $flowIndex }}][trigger]" value="{{ $flow['trigger'] ?? '' }}"
-                                                    class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white mb-2"
-                                                    placeholder="Gatilho (ex: menu, ajuda, 1)">
+                                                <div class="flex gap-2 mb-2">
+                                                    <input type="text" name="chatbotFlows[{{ $flowIndex }}][trigger]" value="{{ $flow['trigger'] ?? '' }}"
+                                                        class="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                                                        placeholder="Gatilho (ex: menu, ajuda, 1)">
+                                                    <select name="chatbotFlows[{{ $flowIndex }}][matchType]"
+                                                        class="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                                                        <option value="partial" {{ ($flow['matchType'] ?? 'partial') === 'partial' ? 'selected' : '' }}>Parcial</option>
+                                                        <option value="exact" {{ ($flow['matchType'] ?? '') === 'exact' ? 'selected' : '' }}>Exata</option>
+                                                    </select>
+                                                </div>
                                                 <textarea name="chatbotFlows[{{ $flowIndex }}][message]" rows="2"
                                                     class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white mb-2"
                                                     placeholder="Mensagem de resposta">{{ $flow['message'] ?? '' }}</textarea>
@@ -566,7 +573,13 @@
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
-                <input type="text" name="chatbotFlows[${flowCounter}][trigger]" class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white mb-2" placeholder="Gatilho (ex: menu, ajuda, 1)">
+                <div class="flex gap-2 mb-2">
+                    <input type="text" name="chatbotFlows[${flowCounter}][trigger]" class="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder="Gatilho (ex: menu, ajuda, 1)">
+                    <select name="chatbotFlows[${flowCounter}][matchType]" class="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                        <option value="partial">Parcial</option>
+                        <option value="exact">Exata</option>
+                    </select>
+                </div>
                 <textarea name="chatbotFlows[${flowCounter}][message]" rows="2" class="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white mb-2" placeholder="Mensagem de resposta"></textarea>
                 <div class="flex justify-between items-center mb-1">
                     <span class="text-xs text-gray-500 dark:text-gray-400">Opções:</span>
@@ -627,6 +640,7 @@
         const flows = [];
         document.querySelectorAll('.chatbot-flow').forEach((flow, flowIdx) => {
             const trigger = flow.querySelector('input[name*="[trigger]"]').value;
+            const matchType = flow.querySelector('select[name*="[matchType]"]').value;
             const message = flow.querySelector('textarea[name*="[message]"]').value;
             const options = [];
             flow.querySelectorAll('.chatbot-option').forEach((opt) => {
@@ -637,7 +651,7 @@
                     next: inputs[2].value,
                 });
             });
-            flows.push({ id: `flow_${flowIdx}`, trigger, message, options });
+            flows.push({ id: `flow_${flowIdx}`, trigger, matchType, message, options });
         });
         settings.chatbot = { enabled: chatbotEnabled, flows };
 

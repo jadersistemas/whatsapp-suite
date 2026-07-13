@@ -41,10 +41,11 @@ type ChatbotConfig struct {
 }
 
 type ChatbotFlow struct {
-	ID       string          `json:"id"`
-	Trigger  string          `json:"trigger"`
-	Message  string          `json:"message"`
-	Options  []ChatbotOption `json:"options"`
+	ID        string          `json:"id"`
+	Trigger   string          `json:"trigger"`
+	MatchType string          `json:"matchType"`
+	Message   string          `json:"message"`
+	Options   []ChatbotOption `json:"options"`
 }
 
 type ChatbotOption struct {

@@ -2042,10 +2042,11 @@ type InstanceSettings struct {
 }
 
 type ChatbotFlow struct {
-	ID      string            `json:"id"`
-	Trigger string            `json:"trigger"`
-	Message string            `json:"message"`
-	Options []ChatbotOption   `json:"options"`
+	ID        string            `json:"id"`
+	Trigger   string            `json:"trigger"`
+	MatchType string            `json:"matchType"`
+	Message   string            `json:"message"`
+	Options   []ChatbotOption   `json:"options"`
 }
 
 type ChatbotOption struct {
@@ -2145,6 +2146,11 @@ func (s *Service) parseSettings(attrs []byte, settings *InstanceSettings) {
 					}
 					if trigger, ok := flowMap["trigger"].(string); ok {
 						f.Trigger = trigger
+					}
+					if matchType, ok := flowMap["matchType"].(string); ok {
+						f.MatchType = matchType
+					} else {
+						f.MatchType = "partial"
 					}
 					if message, ok := flowMap["message"].(string); ok {
 						f.Message = message
@@ -2303,7 +2309,15 @@ func (s *Service) handleChatbotFlow(managed *ManagedWhatsAppClient, settings Ins
 	// Find matching flow by trigger
 	for _, flow := range settings.ChatbotFlows {
 		trigger := strings.ToLower(strings.TrimSpace(flow.Trigger))
-		if trigger == "" || lowerMsg == trigger || strings.Contains(lowerMsg, trigger) {
+		matched := false
+		if trigger == "" {
+			matched = true
+		} else if flow.MatchType == "exact" {
+			matched = lowerMsg == trigger
+		} else {
+			matched = strings.Contains(lowerMsg, trigger)
+		}
+		if matched {
 			s.sendChatMessage(managed, ctx, chat, flow.Message)
 
 			// Send options if available
