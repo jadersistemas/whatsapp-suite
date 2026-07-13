@@ -50,6 +50,7 @@ func RegisterRoutes(
 	instance.Get("/create", globalAuthMiddleware, instanceHandler.List)
 	instance.Get("/fetchInstances", globalAuthMiddleware, instanceHandler.List)
 	instance.Get("/fetchInstance/:instanceName", instanceAuthMiddleware, instanceHandler.Fetch)
+	instance.Put("/settings/:instanceName", instanceAuthMiddleware, instanceHandler.UpdateSettings)
 
 	if whatsAppHandler != nil {
 		instance.Get("/connect/:instanceName/code/:phoneNumber", instanceAuthMiddleware, whatsAppHandler.ConnectPhone)

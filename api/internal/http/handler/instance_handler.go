@@ -124,6 +124,66 @@ func (h *InstanceHandler) RefreshToken(c fiber.Ctx) error {
 	})
 }
 
+func (h *InstanceHandler) UpdateSettings(c fiber.Ctx) error {
+	token, err := bearerToken(c)
+	if err != nil {
+		return err
+	}
+
+	var body request.UpdateInstanceSettingsRequest
+	if err := c.Bind().Body(&body); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest)
+	}
+
+	item, err := h.service.FetchByName(c.Context(), c.Params("instanceName"))
+	if err != nil {
+		return err
+	}
+
+	// Parse existing ExternalAttributes
+	attrs := make(map[string]any)
+	if len(item.Instance.ExternalAttributes) > 0 {
+		_ = json.Unmarshal(item.Instance.ExternalAttributes, &attrs)
+	}
+
+	// Update settings
+	if body.RejectCalls != nil {
+		attrs["rejectCalls"] = *body.RejectCalls
+	}
+	if body.IgnoreGroups != nil {
+		attrs["ignoreGroups"] = *body.IgnoreGroups
+	}
+	if body.AlwaysOnline != nil {
+		attrs["alwaysOnline"] = *body.AlwaysOnline
+	}
+	if body.ReadMessages != nil {
+		attrs["readMessages"] = *body.ReadMessages
+	}
+	if body.SyncFullHistory != nil {
+		attrs["syncFullHistory"] = *body.SyncFullHistory
+	}
+	if body.ViewStatus != nil {
+		attrs["viewStatus"] = *body.ViewStatus
+	}
+
+	newAttrs, _ := json.Marshal(attrs)
+
+	// Update instance
+	rawAttrs := json.RawMessage(newAttrs)
+	_, err = h.service.Update(c.Context(), c.Params("instanceName"), token, types.UpdateInstanceInput{
+		ExternalAttributes: types.OptionalField[json.RawMessage]{Value: &rawAttrs, Set: true},
+	})
+	if err != nil {
+		return err
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"success": true,
+		"message": "Configurações atualizadas com sucesso!",
+		"settings": attrs,
+	})
+}
+
 func mapListItem(item types.InstanceDetails) response.InstanceListItemResponse {
 	return response.InstanceListItemResponse{
 		ID:               item.Instance.ID,

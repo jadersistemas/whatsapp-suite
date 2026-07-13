@@ -26,6 +26,7 @@ type Service interface {
 	List(ctx context.Context, instanceName *string) ([]types.InstanceDetails, error)
 	FetchByName(ctx context.Context, instanceName string) (types.InstanceDetails, error)
 	RefreshToken(ctx context.Context, instanceName string, bearerToken string, oldToken string) (types.Auth, error)
+	Update(ctx context.Context, instanceName string, bearerToken string, input types.UpdateInstanceInput) (types.InstanceWithAuth, error)
 }
 
 type CreateInstanceInput struct {
@@ -209,6 +210,42 @@ func (s *InstanceService) RefreshToken(ctx context.Context, instanceName string,
 		Str("instanceName", name).
 		Int32("authId", updated.ID).
 		Msg("instance token refreshed")
+
+	return updated, nil
+}
+
+func (s *InstanceService) Update(ctx context.Context, instanceName string, bearerToken string, input types.UpdateInstanceInput) (types.InstanceWithAuth, error) {
+	name, err := normalizeRequiredName(instanceName)
+	if err != nil {
+		return types.InstanceWithAuth{}, err
+	}
+	bearerToken = strings.TrimSpace(bearerToken)
+	if bearerToken == "" {
+		return types.InstanceWithAuth{}, repository.ErrInvalidInput
+	}
+
+	claims, err := s.tokenVal.Validate(bearerToken)
+	if err != nil {
+		return types.InstanceWithAuth{}, err
+	}
+	if claims.InstanceName != name {
+		return types.InstanceWithAuth{}, repository.ErrTokenInstanceMismatch
+	}
+
+	instance, err := s.instances.FindByName(ctx, name)
+	if err != nil {
+		return types.InstanceWithAuth{}, err
+	}
+
+	updated, err := s.instances.Update(ctx, instance.Instance.ID, input)
+	if err != nil {
+		return types.InstanceWithAuth{}, err
+	}
+
+	s.logger.Info().
+		Str("operation", "instance.update").
+		Str("instanceName", name).
+		Msg("instance updated")
 
 	return updated, nil
 }

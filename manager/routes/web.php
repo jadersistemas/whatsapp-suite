@@ -23,6 +23,7 @@ Route::prefix('instances')->name('whatsapp.')->group(function () {
     Route::post('/{name}/connect/qr', [WhatsAppController::class, 'connectQr'])->name('connect.qr');
     Route::post('/{name}/connect/pairing', [WhatsAppController::class, 'connectPairing'])->name('connect.pairing');
     Route::get('/{name}/connection-state', [WhatsAppController::class, 'connectionState'])->name('connection-state');
+    Route::put('/{name}/settings', [WhatsAppController::class, 'updateSettings'])->name('settings');
 });
 
 // Messages

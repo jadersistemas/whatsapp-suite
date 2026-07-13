@@ -260,6 +260,14 @@ class WhatsAppApiService
     }
 
     /**
+     * Update instance settings
+     */
+    public function updateSettings(string $instanceName, array $settings): array
+    {
+        return $this->request('PUT', "/instance/settings/{$instanceName}", $settings, $instanceName);
+    }
+
+    /**
      * Make HTTP request
      */
     private function request(string $method, string $uri, array $body = [], ?string $instanceToken = null): array

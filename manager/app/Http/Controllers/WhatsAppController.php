@@ -405,4 +405,40 @@ class WhatsAppController extends Controller
     {
         return view('settings');
     }
+
+    /**
+     * Update instance settings
+     */
+    public function updateSettings(Request $request, string $name)
+    {
+        $request->validate([
+            'rejectCalls' => 'nullable|boolean',
+            'ignoreGroups' => 'nullable|boolean',
+            'alwaysOnline' => 'nullable|boolean',
+            'readMessages' => 'nullable|boolean',
+            'syncFullHistory' => 'nullable|boolean',
+            'viewStatus' => 'nullable|boolean',
+        ]);
+
+        $settings = array_filter([
+            'rejectCalls' => $request->boolean('rejectCalls'),
+            'ignoreGroups' => $request->boolean('ignoreGroups'),
+            'alwaysOnline' => $request->boolean('alwaysOnline'),
+            'readMessages' => $request->boolean('readMessages'),
+            'syncFullHistory' => $request->boolean('syncFullHistory'),
+            'viewStatus' => $request->boolean('viewStatus'),
+        ], fn($v) => $v !== null);
+
+        $result = $this->api->updateSettings($name, $settings);
+
+        if ($result['success']) {
+            return $request->expectsJson()
+                ? response()->json($result)
+                : back()->with('success', 'Configurações atualizadas com sucesso!');
+        }
+
+        return $request->expectsJson()
+            ? response()->json(['error' => $result['error'] ?? 'Erro desconhecido'], 400)
+            : back()->with('error', 'Erro ao atualizar configurações: ' . ($result['error'] ?? 'Erro desconhecido'));
+    }
 }

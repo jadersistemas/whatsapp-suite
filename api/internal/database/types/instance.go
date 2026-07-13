@@ -82,6 +82,12 @@ type Instance struct {
 	CreatedAt          time.Time                `json:"createdAt"`
 	UpdatedAt          time.Time                `json:"updatedAt"`
 	ExternalAttributes json.RawMessage          `json:"externalAttributes"`
+	RejectCalls        bool                     `json:"rejectCalls"`
+	IgnoreGroups       bool                     `json:"ignoreGroups"`
+	AlwaysOnline       bool                     `json:"alwaysOnline"`
+	ReadMessages       bool                     `json:"readMessages"`
+	SyncFullHistory    bool                     `json:"syncFullHistory"`
+	ViewStatus         bool                     `json:"viewStatus"`
 }
 
 type Auth struct {
@@ -117,6 +123,12 @@ type UpdateInstanceInput struct {
 	Description        OptionalField[string]
 	ProfilePicUrl      OptionalField[string]
 	ExternalAttributes OptionalField[json.RawMessage]
+	RejectCalls        OptionalField[bool]
+	IgnoreGroups       OptionalField[bool]
+	AlwaysOnline       OptionalField[bool]
+	ReadMessages       OptionalField[bool]
+	SyncFullHistory    OptionalField[bool]
+	ViewStatus         OptionalField[bool]
 }
 
 type CreateAuthInput struct {
