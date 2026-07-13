@@ -48,9 +48,15 @@
                         <i class="fas fa-check-circle text-green-600 dark:text-green-400 text-4xl"></i>
                     </div>
                     <h3 class="text-xl font-bold text-green-700 dark:text-green-400 mb-2">Instância Conectada</h3>
-                    <p class="text-gray-500 dark:text-gray-400 mb-4">WhatsApp conectado e pronto para uso</p>
+                    <p class="text-gray-500 dark:text-gray-400 mb-2">WhatsApp conectado e pronto para uso</p>
                     @if($instance->phone)
-                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ $instance->phone }}</p>
+                        <div class="mt-3 inline-flex items-center px-4 py-2 bg-green-100 dark:bg-green-900 rounded-full">
+                            <i class="fas fa-phone mr-2 text-green-600 dark:text-green-400"></i>
+                            <span class="font-medium text-green-800 dark:text-green-300">{{ $instance->phone }}</span>
+                        </div>
+                    @endif
+                    @if($instance->owner_jid)
+                        <p class="mt-2 text-xs text-gray-400 dark:text-gray-500">{{ $instance->owner_jid }}</p>
                     @endif
                 </div>
             @else
