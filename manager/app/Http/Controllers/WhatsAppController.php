@@ -437,6 +437,7 @@ class WhatsAppController extends Controller
     {
         $request->validate([
             'rejectCalls' => 'nullable|boolean',
+            'rejectCallMessage' => 'nullable|string|max:500',
             'ignoreGroups' => 'nullable|boolean',
             'alwaysOnline' => 'nullable|boolean',
             'readMessages' => 'nullable|boolean',
@@ -446,6 +447,7 @@ class WhatsAppController extends Controller
 
         $settings = [
             'rejectCalls' => $request->boolean('rejectCalls'),
+            'rejectCallMessage' => $request->input('rejectCallMessage', 'Esse número não recebe ligações, por favor envie um texto ou áudio!'),
             'ignoreGroups' => $request->boolean('ignoreGroups'),
             'alwaysOnline' => $request->boolean('alwaysOnline'),
             'readMessages' => $request->boolean('readMessages'),

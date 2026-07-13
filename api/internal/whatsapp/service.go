@@ -14,8 +14,10 @@ import (
 
 	"github.com/rs/zerolog"
 	"go.mau.fi/whatsmeow"
+	waE2E "go.mau.fi/whatsmeow/proto/waE2E"
 	watypes "go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
+	"google.golang.org/protobuf/proto"
 
 	"whatsapp-go-api/internal/config"
 	"whatsapp-go-api/internal/database/repository"
@@ -2025,16 +2027,18 @@ func errorString(err error) string {
 
 // InstanceSettings holds per-instance configuration
 type InstanceSettings struct {
-	RejectCalls     bool `json:"rejectCalls"`
-	IgnoreGroups    bool `json:"ignoreGroups"`
-	AlwaysOnline    bool `json:"alwaysOnline"`
-	ReadMessages    bool `json:"readMessages"`
-	SyncFullHistory bool `json:"syncFullHistory"`
-	ViewStatus      bool `json:"viewStatus"`
+	RejectCalls       bool   `json:"rejectCalls"`
+	RejectCallMessage string `json:"rejectCallMessage"`
+	IgnoreGroups      bool   `json:"ignoreGroups"`
+	AlwaysOnline      bool   `json:"alwaysOnline"`
+	ReadMessages      bool   `json:"readMessages"`
+	SyncFullHistory   bool   `json:"syncFullHistory"`
+	ViewStatus        bool   `json:"viewStatus"`
 }
 
 func (s *Service) getInstanceSettings(managed *ManagedWhatsAppClient) InstanceSettings {
 	var settings InstanceSettings
+	settings.RejectCallMessage = "Esse número não recebe ligações, por favor envie um texto ou áudio!"
 	instanceID := mustAtoi32(managed.InstanceID)
 	instance, err := s.instances.FindByID(context.Background(), instanceID)
 	if err != nil || len(instance.Instance.ExternalAttributes) == 0 {
@@ -2046,6 +2050,9 @@ func (s *Service) getInstanceSettings(managed *ManagedWhatsAppClient) InstanceSe
 	}
 	if v, ok := attrs["rejectCalls"].(bool); ok {
 		settings.RejectCalls = v
+	}
+	if v, ok := attrs["rejectCallMessage"].(string); ok && v != "" {
+		settings.RejectCallMessage = v
 	}
 	if v, ok := attrs["ignoreGroups"].(bool); ok {
 		settings.IgnoreGroups = v
@@ -2087,6 +2094,30 @@ func (s *Service) handleCallOffer(managed *ManagedWhatsAppClient, event *events.
 			Str("instanceName", managed.InstanceName).
 			Str("callID", callID).
 			Msg("call rejected by instance setting")
+	}
+
+	// Send rejection message
+	if settings.RejectCallMessage != "" && !event.From.IsEmpty() {
+		go func() {
+			msg := &waE2E.Message{
+				ExtendedTextMessage: &waE2E.ExtendedTextMessage{
+					Text: proto.String(settings.RejectCallMessage),
+				},
+			}
+			_, sendErr := managed.Client.SendMessage(ctx, event.From, msg, whatsmeow.SendRequestExtra{})
+			if sendErr != nil {
+				s.logger.Warn().Err(sendErr).
+					Str("instanceName", managed.InstanceName).
+					Str("to", event.From.String()).
+					Msg("failed to send reject call message")
+			} else {
+				s.logger.Info().
+					Str("instanceName", managed.InstanceName).
+					Str("to", event.From.String()).
+					Str("message", settings.RejectCallMessage).
+					Msg("reject call message sent")
+			}
+		}()
 	}
 }
 

@@ -23,12 +23,13 @@ type SetWebhookRequest struct {
 }
 
 type UpdateInstanceSettingsRequest struct {
-	RejectCalls     *bool `json:"rejectCalls,omitempty"`
-	IgnoreGroups    *bool `json:"ignoreGroups,omitempty"`
-	AlwaysOnline    *bool `json:"alwaysOnline,omitempty"`
-	ReadMessages    *bool `json:"readMessages,omitempty"`
-	SyncFullHistory *bool `json:"syncFullHistory,omitempty"`
-	ViewStatus      *bool `json:"viewStatus,omitempty"`
+	RejectCalls        *bool   `json:"rejectCalls,omitempty"`
+	RejectCallMessage  *string `json:"rejectCallMessage,omitempty"`
+	IgnoreGroups       *bool   `json:"ignoreGroups,omitempty"`
+	AlwaysOnline       *bool   `json:"alwaysOnline,omitempty"`
+	ReadMessages       *bool   `json:"readMessages,omitempty"`
+	SyncFullHistory    *bool   `json:"syncFullHistory,omitempty"`
+	ViewStatus         *bool   `json:"viewStatus,omitempty"`
 }
 
 func (r *SetWebhookRequest) UnmarshalJSON(data []byte) error {

@@ -150,6 +150,9 @@ func (h *InstanceHandler) UpdateSettings(c fiber.Ctx) error {
 	if body.RejectCalls != nil {
 		attrs["rejectCalls"] = *body.RejectCalls
 	}
+	if body.RejectCallMessage != nil {
+		attrs["rejectCallMessage"] = *body.RejectCallMessage
+	}
 	if body.IgnoreGroups != nil {
 		attrs["ignoreGroups"] = *body.IgnoreGroups
 	}

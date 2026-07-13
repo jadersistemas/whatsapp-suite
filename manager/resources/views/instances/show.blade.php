@@ -200,17 +200,26 @@
                 <form id="settings-form" onsubmit="saveSettings(event)">
                     @csrf
                     <div class="space-y-4">
-                        <label class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition cursor-pointer">
-                            <div class="flex items-center">
-                                <i class="fas fa-phone-slash mr-3 text-red-500"></i>
-                                <div>
-                                    <span class="font-medium text-gray-800 dark:text-white">Rejeitar Chamadas</span>
-                                    <p class="text-xs text-gray-500 dark:text-gray-400">Rejeita todas as chamadas recebidas</p>
+                        <div class="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                            <label class="flex items-center justify-between cursor-pointer">
+                                <div class="flex items-center">
+                                    <i class="fas fa-phone-slash mr-3 text-red-500"></i>
+                                    <div>
+                                        <span class="font-medium text-gray-800 dark:text-white">Rejeitar Chamadas</span>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400">Rejeita todas as chamadas recebidas</p>
+                                    </div>
                                 </div>
+                                <input type="checkbox" name="rejectCalls" value="1" class="w-5 h-5 text-red-600 rounded focus:ring-red-500"
+                                    {{ ($instance->settings['rejectCalls'] ?? false) ? 'checked' : '' }}
+                                    onchange="toggleRejectMessage()">
+                            </label>
+                            <div id="reject-message-container" class="mt-3 {{ ($instance->settings['rejectCalls'] ?? false) ? '' : 'hidden' }}">
+                                <label class="block text-xs text-gray-500 dark:text-gray-400 mb-1">Mensagem automática:</label>
+                                <input type="text" name="rejectCallMessage" value="{{ $instance->settings['rejectCallMessage'] ?? 'Esse número não recebe ligações, por favor envie um texto ou áudio!' }}"
+                                    class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500"
+                                    placeholder="Mensagem ao rejeitar chamada">
                             </div>
-                            <input type="checkbox" name="rejectCalls" value="1" class="w-5 h-5 text-red-600 rounded focus:ring-red-500"
-                                {{ ($instance->settings['rejectCalls'] ?? false) ? 'checked' : '' }}>
-                        </label>
+                        </div>
 
                         <label class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition cursor-pointer">
                             <div class="flex items-center">
@@ -378,6 +387,16 @@
     // Auto-refresh status every 30 seconds
     setInterval(refreshStatus, 30000);
 
+    function toggleRejectMessage() {
+        const checkbox = document.querySelector('input[name="rejectCalls"]');
+        const container = document.getElementById('reject-message-container');
+        if (checkbox.checked) {
+            container.classList.remove('hidden');
+        } else {
+            container.classList.add('hidden');
+        }
+    }
+
     async function saveSettings(e) {
         e.preventDefault();
         const form = document.getElementById('settings-form');
@@ -389,6 +408,9 @@
         ['rejectCalls', 'ignoreGroups', 'alwaysOnline', 'readMessages', 'syncFullHistory', 'viewStatus'].forEach(key => {
             settings[key] = formData.has(key);
         });
+
+        // Get reject call message
+        settings.rejectCallMessage = formData.get('rejectCallMessage') || 'Esse número não recebe ligações, por favor envie um texto ou áudio!';
 
         result.className = 'mt-4 p-3 rounded-lg bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300';
         result.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Salvando...';
