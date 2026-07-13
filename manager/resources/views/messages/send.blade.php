@@ -228,20 +228,6 @@
     </div>
 </div>
 
-{{-- ========== VERIFICAR NÚMERO ========== --}}
-<div id="panel-check" class="tab-panel hidden bg-white rounded-xl shadow-md overflow-hidden">
-    <div class="bg-purple-600 px-6 py-4">
-        <h2 class="text-white font-bold text-lg"><i class="fas fa-search mr-2"></i> Verificar Número no WhatsApp</h2>
-    </div>
-    <div class="p-6">
-        <button onclick="sendTest('check')" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg transition">
-            <i class="fas fa-search mr-2"></i> Verificar Número
-        </button>
-    </div>
-</div>
-
-@endsection
-
 {{-- ========== BOTÕES ========== --}}
 <div id="panel-buttons" class="tab-panel hidden bg-white rounded-xl shadow-md overflow-hidden">
     <div class="bg-indigo-600 px-6 py-4">
@@ -280,6 +266,20 @@
         </button>
     </div>
 </div>
+
+{{-- ========== VERIFICAR NÚMERO ========== --}}
+<div id="panel-check" class="tab-panel hidden bg-white rounded-xl shadow-md overflow-hidden">
+    <div class="bg-purple-600 px-6 py-4">
+        <h2 class="text-white font-bold text-lg"><i class="fas fa-search mr-2"></i> Verificar Número no WhatsApp</h2>
+    </div>
+    <div class="p-6">
+        <button onclick="sendTest('check')" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg transition">
+            <i class="fas fa-search mr-2"></i> Verificar Número
+        </button>
+    </div>
+</div>
+
+@endsection
 
 @push('scripts')
 <style>
