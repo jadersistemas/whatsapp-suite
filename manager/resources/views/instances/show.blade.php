@@ -494,8 +494,7 @@
         }
     }
 
-    // Auto-refresh status every 30 seconds
-    setInterval(refreshStatus, 30000);
+    // Auto-refresh disabled to prevent losing form data
 
     function toggleRejectMessage() {
         const checkbox = document.querySelector('input[name="rejectCalls"]');
