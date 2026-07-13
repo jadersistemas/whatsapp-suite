@@ -13,17 +13,20 @@ import (
 	"whatsapp-go-api/internal/http/response"
 	"whatsapp-go-api/internal/http/validation"
 	"whatsapp-go-api/internal/instance"
+	"whatsapp-go-api/internal/whatsapp"
 )
 
 type InstanceHandler struct {
-	service   instance.Service
-	validator validation.RequestValidator
-	logger    zerolog.Logger
+	service        instance.Service
+	whatsapp       whatsapp.ConnectionService
+	validator      validation.RequestValidator
+	logger         zerolog.Logger
 }
 
-func NewInstanceHandler(service instance.Service, validator validation.RequestValidator, logger zerolog.Logger) *InstanceHandler {
+func NewInstanceHandler(service instance.Service, whatsapp whatsapp.ConnectionService, validator validation.RequestValidator, logger zerolog.Logger) *InstanceHandler {
 	return &InstanceHandler{
 		service:   service,
+		whatsapp:  whatsapp,
 		validator: validator,
 		logger:    logger.With().Str("component", "instance_handler").Logger(),
 	}
@@ -184,6 +187,11 @@ func (h *InstanceHandler) UpdateSettings(c fiber.Ctx) error {
 	})
 	if err != nil {
 		return err
+	}
+
+	// Reload settings in WhatsApp client
+	if h.whatsapp != nil {
+		_ = h.whatsapp.ReloadInstanceSettingsByName(c.Params("instanceName"))
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{

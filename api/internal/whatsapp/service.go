@@ -74,6 +74,7 @@ type ConnectionService interface {
 	Logout(ctx context.Context, instanceName string, bearerToken string) (LogoutResult, error)
 	DeleteInstance(ctx context.Context, instanceName string, bearerToken string, force bool) (DeleteResult, error)
 	ResolveConnectedClient(ctx context.Context, instanceName string) (*ManagedWhatsAppClient, error)
+	ReloadInstanceSettingsByName(instanceName string) error
 	Restore(ctx context.Context) error
 	Shutdown(ctx context.Context) error
 }
@@ -2039,46 +2040,83 @@ type InstanceSettings struct {
 }
 
 func (s *Service) getInstanceSettings(managed *ManagedWhatsAppClient) InstanceSettings {
+	// Return cached settings if available
+	if managed.Settings != nil {
+		return *managed.Settings
+	}
+
+	// Load from database
 	var settings InstanceSettings
 	settings.RejectCallMessage = "Esse número não recebe ligações, por favor envie um texto ou áudio!"
 	settings.AutoReplyMessage = "Olá! No momento não posso atender, mas deixe sua mensagem que retorno em breve!"
 	instanceID := mustAtoi32(managed.InstanceID)
 	instance, err := s.instances.FindByID(context.Background(), instanceID)
 	if err != nil || len(instance.Instance.ExternalAttributes) == 0 {
+		managed.Settings = &settings
 		return settings
 	}
-	var attrs map[string]any
-	if err := json.Unmarshal(instance.Instance.ExternalAttributes, &attrs); err != nil {
-		return settings
+	s.parseSettings(instance.Instance.ExternalAttributes, &settings)
+	managed.Settings = &settings
+	return settings
+}
+
+func (s *Service) ReloadInstanceSettings(managed *ManagedWhatsAppClient) {
+	var settings InstanceSettings
+	settings.RejectCallMessage = "Esse número não recebe ligações, por favor envie um texto ou áudio!"
+	settings.AutoReplyMessage = "Olá! No momento não posso atender, mas deixe sua mensagem que retorno em breve!"
+	instanceID := mustAtoi32(managed.InstanceID)
+	instance, err := s.instances.FindByID(context.Background(), instanceID)
+	if err != nil || len(instance.Instance.ExternalAttributes) == 0 {
+		managed.Settings = &settings
+		return
 	}
-	if v, ok := attrs["rejectCalls"].(bool); ok {
+	s.parseSettings(instance.Instance.ExternalAttributes, &settings)
+	managed.Settings = &settings
+}
+
+func (s *Service) ReloadInstanceSettingsByName(instanceName string) error {
+	instanceID := strconv.Itoa(int(mustAtoi32(instanceName)))
+	for _, client := range s.hub.List() {
+		if client.InstanceID == instanceID || client.InstanceName == instanceName {
+			s.ReloadInstanceSettings(client)
+			return nil
+		}
+	}
+	return nil
+}
+
+func (s *Service) parseSettings(attrs []byte, settings *InstanceSettings) {
+	var raw map[string]any
+	if err := json.Unmarshal(attrs, &raw); err != nil {
+		return
+	}
+	if v, ok := raw["rejectCalls"].(bool); ok {
 		settings.RejectCalls = v
 	}
-	if v, ok := attrs["rejectCallMessage"].(string); ok && v != "" {
+	if v, ok := raw["rejectCallMessage"].(string); ok && v != "" {
 		settings.RejectCallMessage = v
 	}
-	if v, ok := attrs["ignoreGroups"].(bool); ok {
+	if v, ok := raw["ignoreGroups"].(bool); ok {
 		settings.IgnoreGroups = v
 	}
-	if v, ok := attrs["alwaysOnline"].(bool); ok {
+	if v, ok := raw["alwaysOnline"].(bool); ok {
 		settings.AlwaysOnline = v
 	}
-	if v, ok := attrs["readMessages"].(bool); ok {
+	if v, ok := raw["readMessages"].(bool); ok {
 		settings.ReadMessages = v
 	}
-	if v, ok := attrs["syncFullHistory"].(bool); ok {
+	if v, ok := raw["syncFullHistory"].(bool); ok {
 		settings.SyncFullHistory = v
 	}
-	if v, ok := attrs["viewStatus"].(bool); ok {
+	if v, ok := raw["viewStatus"].(bool); ok {
 		settings.ViewStatus = v
 	}
-	if v, ok := attrs["autoReply"].(bool); ok {
+	if v, ok := raw["autoReply"].(bool); ok {
 		settings.AutoReply = v
 	}
-	if v, ok := attrs["autoReplyMessage"].(string); ok && v != "" {
+	if v, ok := raw["autoReplyMessage"].(string); ok && v != "" {
 		settings.AutoReplyMessage = v
 	}
-	return settings
 }
 
 func (s *Service) handleCallOffer(managed *ManagedWhatsAppClient, event *events.CallOffer) {

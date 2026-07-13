@@ -45,7 +45,7 @@ func NewServer(
 	app.Use(middleware.RequestLogger(logger))
 
 	requestValidator := validation.New()
-	instanceHandler := handler.NewInstanceHandler(instanceService, requestValidator, logger)
+	instanceHandler := handler.NewInstanceHandler(instanceService, whatsAppService, requestValidator, logger)
 	var webhookHandler *handler.WebhookHandler
 	if webhookService != nil {
 		webhookHandler = handler.NewWebhookHandler(webhookService, requestValidator, logger)

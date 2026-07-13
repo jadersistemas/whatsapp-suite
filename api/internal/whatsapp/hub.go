@@ -19,6 +19,7 @@ type ManagedWhatsAppClient struct {
 	Status       string
 	StartedAt    time.Time
 	ConnectedAt  time.Time
+	Settings     *InstanceSettings
 
 	ConnectedSignal chan struct{}
 	ConnectedOnce   sync.Once

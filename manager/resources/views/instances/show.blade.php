@@ -147,6 +147,24 @@
                     <span class="text-gray-600 dark:text-gray-400">JID</span>
                     <span class="font-medium text-sm text-gray-800 dark:text-white">{{ $instance->owner_jid ?? '-' }}</span>
                 </div>
+                <div class="py-2 border-b border-gray-200 dark:border-gray-700">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-gray-600 dark:text-gray-400">API Key (Token)</span>
+                        <div class="flex space-x-1">
+                            <button onclick="toggleApiKey()" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-1" title="Mostrar/Ocultar">
+                                <i id="api-key-eye" class="fas fa-eye"></i>
+                            </button>
+                            <button onclick="copyApiKey()" class="text-gray-500 hover:text-green-600 dark:text-gray-400 dark:hover:text-green-400 p-1" title="Copiar">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg px-3 py-2">
+                        <code id="api-key-value" class="flex-1 text-sm font-mono text-gray-500 dark:text-gray-400 select-all">••••••••••••••••••••••••••••••••</code>
+                        <span id="api-key-copied" class="hidden text-green-600 text-xs ml-2">Copiado!</span>
+                    </div>
+                    <input type="hidden" id="api-key-hidden" value="{{ $instance->token }}">
+                </div>
                 <div class="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700">
                     <span class="text-gray-600 dark:text-gray-400">Criado em</span>
                     <span class="font-medium text-gray-800 dark:text-white">{{ $instance->created_at->format('d/m/Y H:i') }}</span>
@@ -426,6 +444,34 @@
         } else {
             container.classList.add('hidden');
         }
+    }
+
+    let apiKeyVisible = false;
+
+    function toggleApiKey() {
+        const value = document.getElementById('api-key-value');
+        const hidden = document.getElementById('api-key-hidden');
+        const eye = document.getElementById('api-key-eye');
+
+        apiKeyVisible = !apiKeyVisible;
+
+        if (apiKeyVisible) {
+            value.textContent = hidden.value;
+            eye.className = 'fas fa-eye-slash';
+        } else {
+            value.textContent = '••••••••••••••••••••••••••••••••';
+            eye.className = 'fas fa-eye';
+        }
+    }
+
+    function copyApiKey() {
+        const hidden = document.getElementById('api-key-hidden');
+        const copied = document.getElementById('api-key-copied');
+
+        navigator.clipboard.writeText(hidden.value).then(() => {
+            copied.classList.remove('hidden');
+            setTimeout(() => copied.classList.add('hidden'), 2000);
+        });
     }
 
     async function saveSettings(e) {
