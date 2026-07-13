@@ -50,11 +50,16 @@ class WhatsAppInstance extends Model
         $attrs = $this->external_attributes ?? [];
         return [
             'rejectCalls' => $attrs['rejectCalls'] ?? false,
+            'rejectCallMessage' => $attrs['rejectCallMessage'] ?? 'Esse número não recebe ligações, por favor envie um texto ou áudio!',
             'ignoreGroups' => $attrs['ignoreGroups'] ?? false,
             'alwaysOnline' => $attrs['alwaysOnline'] ?? false,
             'readMessages' => $attrs['readMessages'] ?? false,
             'syncFullHistory' => $attrs['syncFullHistory'] ?? false,
             'viewStatus' => $attrs['viewStatus'] ?? false,
+            'autoReply' => $attrs['autoReply'] ?? false,
+            'autoReplyMessage' => $attrs['autoReplyMessage'] ?? 'Olá! No momento não posso atender, mas deixe sua mensagem que retorno em breve!',
+            'chatbotEnabled' => $attrs['chatbot']['enabled'] ?? false,
+            'chatbotFlows' => $attrs['chatbot']['flows'] ?? [],
         ];
     }
 }
