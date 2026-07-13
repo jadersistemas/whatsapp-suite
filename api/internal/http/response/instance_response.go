@@ -111,6 +111,7 @@ type ConnectionStateResponse struct {
 	Connected        bool    `json:"connected"`
 	LoggedIn         bool    `json:"loggedIn"`
 	OwnerJid         *string `json:"ownerJid"`
+	Phone            *string `json:"phone"`
 }
 
 type InstanceLogoutResponse struct {

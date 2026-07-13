@@ -46,6 +46,7 @@ type ConnectionStateResult struct {
 	Connected        bool
 	LoggedIn         bool
 	OwnerJid         *string
+	Phone            *string
 }
 
 type LogoutResult struct {
@@ -392,12 +393,14 @@ func (s *Service) ConnectionState(ctx context.Context, instanceName string, bear
 			Connected:        false,
 			LoggedIn:         false,
 			OwnerJid:         nil,
+			Phone:            nil,
 		}, nil
 	}
 
 	connected := client.Client.IsConnected()
 	loggedIn := client.Client.IsLoggedIn()
 	ownerJID := ownerJIDFromClient(client)
+	phone := phoneFromOwnerJID(ownerJID)
 	state := apiState(instance.Instance.ConnectionStatus, connected, loggedIn, client.Client.Store.ID != nil)
 	statusReason := 200
 	if state == "close" {
@@ -411,6 +414,7 @@ func (s *Service) ConnectionState(ctx context.Context, instanceName string, bear
 		Connected:        connected,
 		LoggedIn:         loggedIn,
 		OwnerJid:         ownerJID,
+		Phone:            phone,
 	}, nil
 }
 
@@ -940,6 +944,22 @@ func ownerJIDFromClient(client *ManagedWhatsAppClient) *string {
 	}
 	owner := client.Client.Store.ID.ToNonAD().String()
 	return &owner
+}
+
+func phoneFromOwnerJID(ownerJID *string) *string {
+	if ownerJID == nil {
+		return nil
+	}
+	// ownerJID format: 5511999999999@s.whatsapp.net
+	parts := strings.Split(*ownerJID, "@")
+	if len(parts) == 0 {
+		return nil
+	}
+	phone := parts[0]
+	if phone == "" {
+		return nil
+	}
+	return &phone
 }
 
 func apiState(status types.InstanceConnectionStatus, connected bool, loggedIn bool, hasDevice bool) string {

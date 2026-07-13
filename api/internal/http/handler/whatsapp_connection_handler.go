@@ -115,6 +115,7 @@ func (h *WhatsAppConnectionHandler) ConnectionState(c fiber.Ctx) error {
 		Connected:        result.Connected,
 		LoggedIn:         result.LoggedIn,
 		OwnerJid:         result.OwnerJid,
+		Phone:            result.Phone,
 	})
 }
 
