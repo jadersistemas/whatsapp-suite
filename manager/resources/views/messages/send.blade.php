@@ -43,9 +43,6 @@
         <button onclick="showTab('reaction')" id="tab-reaction" class="tab-btn px-4 py-2 rounded-lg font-medium text-sm transition">
             <i class="fas fa-smile mr-1"></i> Reação
         </button>
-        <button onclick="showTab('carousel')" id="tab-carousel" class="tab-btn px-4 py-2 rounded-lg font-medium text-sm transition">
-            <i class="fas fa-images mr-1"></i> Carousel
-        </button>
         <button onclick="showTab('check')" id="tab-check" class="tab-btn px-4 py-2 rounded-lg font-medium text-sm transition">
             <i class="fas fa-search mr-1"></i> Verificar Nº
         </button>

@@ -15,16 +15,15 @@ const MaxDelayMilliseconds int64 = 120000
 type MessageKind string
 
 const (
-	KindText      MessageKind = "text"
-	KindLink      MessageKind = "link"
-	KindImage     MessageKind = "image"
-	KindDocument  MessageKind = "document"
-	KindVideo     MessageKind = "video"
-	KindAudio     MessageKind = "audio"
-	KindPTV       MessageKind = "ptv"
-	KindContact   MessageKind = "contact"
-	KindLocation  MessageKind = "location"
-	KindCarousel  MessageKind = "carousel"
+	KindText     MessageKind = "text"
+	KindLink     MessageKind = "link"
+	KindImage    MessageKind = "image"
+	KindDocument MessageKind = "document"
+	KindVideo    MessageKind = "video"
+	KindAudio    MessageKind = "audio"
+	KindPTV      MessageKind = "ptv"
+	KindContact  MessageKind = "contact"
+	KindLocation MessageKind = "location"
 )
 
 func validateOptions(options *MessageOptions, kind MessageKind) (*string, time.Duration, error) {

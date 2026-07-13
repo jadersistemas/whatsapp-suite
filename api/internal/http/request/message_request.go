@@ -109,29 +109,3 @@ type ReactionKey struct {
 	ID          string  `json:"id"`
 	Participant *string `json:"participant"`
 }
-
-type SendCarouselRequest struct {
-	Number         *string          `json:"number"`
-	Chat           *string          `json:"chat"`
-	Recipient      *string          `json:"recipient"`
-	Options        *MessageOptions  `json:"options"`
-	CarouselMessage *CarouselMessage `json:"carouselMessage"`
-}
-
-type CarouselMessage struct {
-	Text   string          `json:"text"`
-	Cards  []CarouselCard  `json:"cards"`
-}
-
-type CarouselCard struct {
-	ImageURL   string  `json:"imageUrl"`
-	Title      string  `json:"title"`
-	Buttons    []CarouselButton `json:"buttons"`
-}
-
-type CarouselButton struct {
-	Type string `json:"type"`
-	ID   string `json:"id"`
-	Text string `json:"text"`
-	URL  string `json:"url,omitempty"`
-}

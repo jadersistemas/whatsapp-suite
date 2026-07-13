@@ -340,37 +340,6 @@ class WhatsAppController extends Controller
     }
 
     /**
-     * Send carousel message
-     */
-    public function sendCarousel(Request $request, string $name)
-    {
-        $request->validate([
-            'number' => 'required|string|min:10|max:15',
-            'text' => 'required|string|max:1024',
-            'cards' => 'required|array|min:1|max:10',
-            'cards.*.imageUrl' => 'required|url',
-            'cards.*.title' => 'required|string|max:20',
-            'cards.*.buttons' => 'nullable|array|max:3',
-            'cards.*.buttons.*.type' => 'required_with:cards.*.buttons|string|in:quick_reply,url',
-            'cards.*.buttons.*.id' => 'required_if:cards.*.buttons.*.type,quick_reply|string',
-            'cards.*.buttons.*.text' => 'required_with:cards.*.buttons|string|max:20',
-            'cards.*.buttons.*.url' => 'required_if:cards.*.buttons.*.type,url|url',
-        ]);
-
-        $result = $this->api->sendCarousel($name, $request->number, $request->text, $request->cards);
-
-        if ($result['success']) {
-            return $request->expectsJson()
-                ? response()->json(['success' => true, 'message' => 'Carousel enviado com sucesso!', 'data' => $result['data']])
-                : back()->with('success', 'Carousel enviado com sucesso!');
-        }
-
-        return $request->expectsJson()
-            ? response()->json(['success' => false, 'error' => $result['error'] ?? 'Erro desconhecido'], 400)
-            : back()->with('error', 'Erro ao enviar carousel: ' . ($result['error'] ?? 'Erro desconhecido'));
-    }
-
-    /**
      * Webhook settings page
      */
     public function webhookSettings(string $name)

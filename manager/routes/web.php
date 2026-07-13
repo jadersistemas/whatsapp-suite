@@ -34,7 +34,6 @@ Route::prefix('messages')->name('messages.')->group(function () {
     Route::post('/{instanceName}/contact', [WhatsAppController::class, 'sendContact'])->name('contact');
     Route::post('/{instanceName}/location', [WhatsAppController::class, 'sendLocation'])->name('location');
     Route::post('/{instanceName}/reaction', [WhatsAppController::class, 'sendReaction'])->name('reaction');
-    Route::post('/{instanceName}/carousel', [WhatsAppController::class, 'sendCarousel'])->name('carousel');
 });
 
 // Webhooks

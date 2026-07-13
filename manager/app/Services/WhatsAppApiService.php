@@ -171,20 +171,6 @@ class WhatsAppApiService
     }
 
     /**
-     * Send carousel message
-     */
-    public function sendCarousel(string $instanceName, string $number, string $text, array $cards): array
-    {
-        return $this->request('POST', "/message/sendCarousel/{$instanceName}", [
-            'number' => $number,
-            'carouselMessage' => [
-                'text' => $text,
-                'cards' => $cards,
-            ],
-        ], $instanceName);
-    }
-
-    /**
      * Set webhook
      */
     public function setWebhook(string $instanceName, string $url, bool $enabled, array $events): array
