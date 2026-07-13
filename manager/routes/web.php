@@ -1,8 +1,15 @@
 <?php
 
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\WhatsAppController;
 use Illuminate\Support\Facades\Route;
 
+// Auth routes (excluded from ApiKey middleware via isAuthRoute check)
+Route::get('/login', [AuthController::class, 'showForm'])->name('auth.apikey.form');
+Route::post('/login', [AuthController::class, 'verify'])->name('auth.apikey.verify');
+Route::post('/logout', [AuthController::class, 'logout'])->name('auth.logout');
+
+// Protected routes
 Route::get('/', [WhatsAppController::class, 'dashboard'])->name('dashboard');
 
 // Instances

@@ -50,6 +50,12 @@
                     <a href="{{ route('settings') }}" class="text-white hover:text-green-100 transition">
                         <i class="fas fa-cog mr-1"></i> Config
                     </a>
+                    <form method="POST" action="{{ route('auth.logout') }}" class="inline">
+                        @csrf
+                        <button type="submit" class="text-white hover:text-green-100 transition">
+                            <i class="fas fa-sign-out-alt mr-1"></i> Sair
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
