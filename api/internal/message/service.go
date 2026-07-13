@@ -55,7 +55,7 @@ type Service interface {
 	SendContact(ctx context.Context, instanceName string, bearerToken string, input SendContactRequest) (SendResult, error)
 	SendLocation(ctx context.Context, instanceName string, bearerToken string, input SendLocationRequest) (SendResult, error)
 	SendReaction(ctx context.Context, instanceName string, bearerToken string, input SendReactionRequest) (SendResult, error)
-	SendButtons(ctx context.Context, instanceName string, bearerToken string, input SendButtonsRequest) (SendResult, error)
+	SendCarousel(ctx context.Context, instanceName string, bearerToken string, input SendCarouselRequest) (SendResult, error)
 }
 
 type MessageService struct {
@@ -207,46 +207,80 @@ func (s *MessageService) SendMedia(ctx context.Context, instanceName string, bea
 	})
 }
 
-func (s *MessageService) SendButtons(ctx context.Context, instanceName string, bearerToken string, input SendButtonsRequest) (SendResult, error) {
-	text, buttons, err := validateButtons(input.ButtonsMessage)
+func (s *MessageService) SendCarousel(ctx context.Context, instanceName string, bearerToken string, input SendCarouselRequest) (SendResult, error) {
+	text, cards, err := validateCarousel(input.CarouselMessage)
 	if err != nil {
 		return SendResult{}, err
 	}
-
-	// Build formatted text with buttons
-	var sb strings.Builder
-	sb.WriteString(text)
-	sb.WriteString("\n\n")
-
-	for i, btn := range buttons {
-		sb.WriteString(fmt.Sprintf("*%d. %s*", i+1, btn.Title))
-		if btn.Type == "url" && btn.URL != "" {
-			sb.WriteString(fmt.Sprintf("\n   %s", btn.URL))
-		}
-		sb.WriteString("\n")
-	}
-
-	fullText := sb.String()
-
 	return s.send(ctx, instanceName, bearerToken, outboundRequest{
 		Recipient: recipientInput(input.Number, input.Chat, input.Recipient),
 		Options:   input.Options,
-		Kind:      KindText,
+		Kind:      KindCarousel,
 		Build: func(ctx context.Context, client *whatsmeow.Client, quoted *wae2e.ContextInfo) (*wae2e.Message, string, map[string]any, error) {
 			_ = ctx
 			_ = client
-			msg := &wae2e.Message{ExtendedTextMessage: &wae2e.ExtendedTextMessage{
-				Text:        proto.String(fullText),
-				ContextInfo: quoted,
-			}}
+
+			// Build carousel message as interactive message with carousel format
+			cardsData := make([]map[string]any, len(cards))
+			for i, card := range cards {
+				cardData := map[string]any{
+					"image_url": card.ImageURL,
+					"title":    card.Title,
+				}
+				if len(card.Buttons) > 0 {
+					buttonsData := make([]map[string]any, len(card.Buttons))
+					for j, btn := range card.Buttons {
+						buttonsData[j] = map[string]any{
+							"type": btn.Type,
+							"id":   btn.ID,
+							"text": btn.Text,
+						}
+						if btn.URL != "" {
+							buttonsData[j]["url"] = btn.URL
+						}
+					}
+					cardData["buttons"] = buttonsData
+				}
+				cardsData[i] = cardData
+			}
+
 			content := map[string]any{
-				"text":    fullText,
-				"buttons": buttons,
+				"text":  text,
+				"cards": cardsData,
 			}
 			if quoted != nil {
 				content["contextInfo"] = contextInfoContent(quoted)
 			}
-			return msg, "extendedTextMessage", content, nil
+
+			// Send as carousel message using native flow
+			nativeButtons := make([]*wae2e.InteractiveMessage_NativeFlowMessage_NativeFlowButton, 0)
+			paramsJSON, _ := json.Marshal(map[string]any{
+				"cards":   cardsData,
+				"message": text,
+			})
+
+			nativeButtons = append(nativeButtons, &wae2e.InteractiveMessage_NativeFlowMessage_NativeFlowButton{
+				Name:             proto.String("review_and_pay"),
+				ButtonParamsJSON: proto.String(string(paramsJSON)),
+			})
+
+			msg := &wae2e.Message{
+				InteractiveMessage: &wae2e.InteractiveMessage{
+					Body: &wae2e.InteractiveMessage_Body{
+						Text: proto.String(text),
+					},
+					InteractiveMessage: &wae2e.InteractiveMessage_NativeFlowMessage_{
+						NativeFlowMessage: &wae2e.InteractiveMessage_NativeFlowMessage{
+							Buttons:           nativeButtons,
+							MessageParamsJSON: proto.String(string(paramsJSON)),
+							MessageVersion:    proto.Int32(2),
+						},
+					},
+					ContextInfo: quoted,
+				},
+			}
+
+			return msg, "interactiveMessage", content, nil
 		},
 	})
 }
@@ -589,35 +623,46 @@ func validateText(input *TextMessage) (string, error) {
 	return input.Text, nil
 }
 
-func validateButtons(input *ButtonsMessage) (string, []Button, error) {
+func validateCarousel(input *CarouselMessage) (string, []CarouselCard, error) {
 	if input == nil {
-		return "", nil, fmt.Errorf("%w: buttonsMessage is required", ErrInvalidRequest)
+		return "", nil, fmt.Errorf("%w: carouselMessage is required", ErrInvalidRequest)
 	}
 	if strings.TrimSpace(input.Text) == "" {
-		return "", nil, fmt.Errorf("%w: buttonsMessage.text is required", ErrInvalidRequest)
+		return "", nil, fmt.Errorf("%w: carouselMessage.text is required", ErrInvalidRequest)
 	}
-	if len(input.Buttons) == 0 {
-		return "", nil, fmt.Errorf("%w: buttonsMessage.buttons is required", ErrInvalidRequest)
+	if len(input.Cards) == 0 {
+		return "", nil, fmt.Errorf("%w: carouselMessage.cards is required", ErrInvalidRequest)
 	}
-	if len(input.Buttons) > 3 {
-		return "", nil, fmt.Errorf("%w: maximum 3 buttons allowed", ErrInvalidRequest)
+	if len(input.Cards) > 10 {
+		return "", nil, fmt.Errorf("%w: maximum 10 cards allowed", ErrInvalidRequest)
 	}
-	for i, btn := range input.Buttons {
-		if strings.TrimSpace(btn.Title) == "" {
-			return "", nil, fmt.Errorf("%w: button[%d].title is required", ErrInvalidRequest, i)
+	for i, card := range input.Cards {
+		if strings.TrimSpace(card.Title) == "" {
+			return "", nil, fmt.Errorf("%w: card[%d].title is required", ErrInvalidRequest, i)
 		}
-		btnType := strings.ToLower(strings.TrimSpace(btn.Type))
-		if btnType != "quick_reply" && btnType != "url" {
-			return "", nil, fmt.Errorf("%w: button[%d].type must be 'quick_reply' or 'url'", ErrInvalidRequest, i)
+		if strings.TrimSpace(card.ImageURL) == "" {
+			return "", nil, fmt.Errorf("%w: card[%d].imageUrl is required", ErrInvalidRequest, i)
 		}
-		if btnType == "quick_reply" && strings.TrimSpace(btn.ID) == "" {
-			return "", nil, fmt.Errorf("%w: button[%d].id is required for quick_reply", ErrInvalidRequest, i)
+		if len(card.Buttons) > 3 {
+			return "", nil, fmt.Errorf("%w: card[%d] maximum 3 buttons allowed", ErrInvalidRequest, i)
 		}
-		if btnType == "url" && strings.TrimSpace(btn.URL) == "" {
-			return "", nil, fmt.Errorf("%w: button[%d].url is required for url type", ErrInvalidRequest, i)
+		for j, btn := range card.Buttons {
+			if strings.TrimSpace(btn.Text) == "" {
+				return "", nil, fmt.Errorf("%w: card[%d].button[%d].text is required", ErrInvalidRequest, i, j)
+			}
+			btnType := strings.ToLower(strings.TrimSpace(btn.Type))
+			if btnType != "quick_reply" && btnType != "url" {
+				return "", nil, fmt.Errorf("%w: card[%d].button[%d].type must be 'quick_reply' or 'url'", ErrInvalidRequest, i, j)
+			}
+			if btnType == "quick_reply" && strings.TrimSpace(btn.ID) == "" {
+				return "", nil, fmt.Errorf("%w: card[%d].button[%d].id is required for quick_reply", ErrInvalidRequest, i, j)
+			}
+			if btnType == "url" && strings.TrimSpace(btn.URL) == "" {
+				return "", nil, fmt.Errorf("%w: card[%d].button[%d].url is required for url type", ErrInvalidRequest, i, j)
+			}
 		}
 	}
-	return input.Text, input.Buttons, nil
+	return input.Text, input.Cards, nil
 }
 
 func validateLink(input *LinkMessage) (string, *string, *string, *string, error) {

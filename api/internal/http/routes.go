@@ -81,7 +81,7 @@ func RegisterRoutes(
 		messages.Post("/sendContact/:instanceName", instanceAuthMiddleware, messageHandler.SendContact)
 		messages.Post("/sendLocation/:instanceName", instanceAuthMiddleware, messageHandler.SendLocation)
 		messages.Post("/sendReaction/:instanceName", instanceAuthMiddleware, messageHandler.SendReaction)
-		messages.Post("/sendButtons/:instanceName", instanceAuthMiddleware, messageHandler.SendButtons)
+		messages.Post("/sendCarousel/:instanceName", instanceAuthMiddleware, messageHandler.SendCarousel)
 	}
 
 	if chatHandler != nil {

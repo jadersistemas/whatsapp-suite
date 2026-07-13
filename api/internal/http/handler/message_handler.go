@@ -196,16 +196,16 @@ func (h *MessageHandler) SendReaction(c fiber.Ctx) error {
 	return sendMessageResult(c, result)
 }
 
-func (h *MessageHandler) SendButtons(c fiber.Ctx) error {
+func (h *MessageHandler) SendCarousel(c fiber.Ctx) error {
 	token, err := bearerToken(c)
 	if err != nil {
 		return err
 	}
-	var body request.SendButtonsRequest
+	var body request.SendCarouselRequest
 	if err := c.Bind().Body(&body); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest)
 	}
-	result, err := h.service.SendButtons(c.Context(), c.Params("instanceName"), token, body)
+	result, err := h.service.SendCarousel(c.Context(), c.Params("instanceName"), token, body)
 	if err != nil {
 		return err
 	}

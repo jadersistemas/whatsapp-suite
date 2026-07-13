@@ -171,15 +171,15 @@ class WhatsAppApiService
     }
 
     /**
-     * Send buttons message
+     * Send carousel message
      */
-    public function sendButtons(string $instanceName, string $number, string $text, array $buttons): array
+    public function sendCarousel(string $instanceName, string $number, string $text, array $cards): array
     {
-        return $this->request('POST', "/message/sendButtons/{$instanceName}", [
+        return $this->request('POST', "/message/sendCarousel/{$instanceName}", [
             'number' => $number,
-            'buttonsMessage' => [
+            'carouselMessage' => [
                 'text' => $text,
-                'buttons' => $buttons,
+                'cards' => $cards,
             ],
         ], $instanceName);
     }

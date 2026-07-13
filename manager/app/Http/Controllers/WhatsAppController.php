@@ -340,31 +340,34 @@ class WhatsAppController extends Controller
     }
 
     /**
-     * Send buttons message
+     * Send carousel message
      */
-    public function sendButtons(Request $request, string $name)
+    public function sendCarousel(Request $request, string $name)
     {
         $request->validate([
             'number' => 'required|string|min:10|max:15',
             'text' => 'required|string|max:1024',
-            'buttons' => 'required|array|min:1|max:3',
-            'buttons.*.type' => 'required|string|in:quick_reply,url',
-            'buttons.*.id' => 'required_if:buttons.*.type,quick_reply|string',
-            'buttons.*.title' => 'required|string|max:20',
-            'buttons.*.url' => 'required_if:buttons.*.type,url|url',
+            'cards' => 'required|array|min:1|max:10',
+            'cards.*.imageUrl' => 'required|url',
+            'cards.*.title' => 'required|string|max:20',
+            'cards.*.buttons' => 'nullable|array|max:3',
+            'cards.*.buttons.*.type' => 'required_with:cards.*.buttons|string|in:quick_reply,url',
+            'cards.*.buttons.*.id' => 'required_if:cards.*.buttons.*.type,quick_reply|string',
+            'cards.*.buttons.*.text' => 'required_with:cards.*.buttons|string|max:20',
+            'cards.*.buttons.*.url' => 'required_if:cards.*.buttons.*.type,url|url',
         ]);
 
-        $result = $this->api->sendButtons($name, $request->number, $request->text, $request->buttons);
+        $result = $this->api->sendCarousel($name, $request->number, $request->text, $request->cards);
 
         if ($result['success']) {
             return $request->expectsJson()
-                ? response()->json(['success' => true, 'message' => 'Botões enviados com sucesso!', 'data' => $result['data']])
-                : back()->with('success', 'Botões enviados com sucesso!');
+                ? response()->json(['success' => true, 'message' => 'Carousel enviado com sucesso!', 'data' => $result['data']])
+                : back()->with('success', 'Carousel enviado com sucesso!');
         }
 
         return $request->expectsJson()
             ? response()->json(['success' => false, 'error' => $result['error'] ?? 'Erro desconhecido'], 400)
-            : back()->with('error', 'Erro ao enviar botões: ' . ($result['error'] ?? 'Erro desconhecido'));
+            : back()->with('error', 'Erro ao enviar carousel: ' . ($result['error'] ?? 'Erro desconhecido'));
     }
 
     /**
