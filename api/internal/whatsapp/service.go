@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -81,15 +82,21 @@ type ConnectionService interface {
 
 // ChatbotContext holds conversation state per chat
 type ChatbotContext struct {
-	CurrentFlowID string
-	History       []ChatbotMessage
-	LastActivity  time.Time
+	CurrentFlowID string           `json:"currentFlowId"`
+	History       []ChatbotMessage `json:"history"`
+	LastActivity  time.Time        `json:"lastActivity"`
 }
 
 type ChatbotMessage struct {
-	Role    string // "user" or "bot"
-	Content string
-	Time    time.Time
+	Role    string    `json:"role"`
+	Content string    `json:"content"`
+	Time    time.Time `json:"time"`
+}
+
+type ChatbotContextStore struct {
+	Contexts map[string]*ChatbotContext `json:"contexts"`
+	mu       sync.RWMutex
+	filePath string
 }
 
 type Service struct {
@@ -108,8 +115,7 @@ type Service struct {
 	pairings           *pairingManager
 	contactSyncMu      sync.Mutex
 	contactSyncCancels map[string]*contactSyncHandle
-	chatbotContexts    map[string]*ChatbotContext // key: instanceID:chatJID
-	chatbotMu          sync.RWMutex
+	chatbotStore       *ChatbotContextStore
 }
 
 type contactSyncHandle struct {
@@ -146,8 +152,62 @@ func NewService(
 		appCancel:          appCancel,
 		pairings:           newPairingManager(),
 		contactSyncCancels: make(map[string]*contactSyncHandle),
-		chatbotContexts:    make(map[string]*ChatbotContext),
+		chatbotStore:       NewChatbotContextStore("data/chatbot_contexts.json"),
 	}, nil
+}
+
+func NewChatbotContextStore(filePath string) *ChatbotContextStore {
+	store := &ChatbotContextStore{
+		Contexts: make(map[string]*ChatbotContext),
+		filePath: filePath,
+	}
+	store.Load()
+	return store
+}
+
+func (s *ChatbotContextStore) Load() {
+	data, err := os.ReadFile(s.filePath)
+	if err != nil {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	json.Unmarshal(data, &s.Contexts)
+}
+
+func (s *ChatbotContextStore) Save() {
+	s.mu.RLock()
+	data, err := json.MarshalIndent(s.Contexts, "", "  ")
+	s.mu.RUnlock()
+	if err != nil {
+		return
+	}
+	os.MkdirAll("data", 0755)
+	os.WriteFile(s.filePath, data, 0644)
+}
+
+func (s *ChatbotContextStore) Get(key string) *ChatbotContext {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	ctx, exists := s.Contexts[key]
+	if !exists || time.Since(ctx.LastActivity) > chatbotContextTimeout {
+		return nil
+	}
+	return ctx
+}
+
+func (s *ChatbotContextStore) Set(key string, ctx *ChatbotContext) {
+	s.mu.Lock()
+	s.Contexts[key] = ctx
+	s.mu.Unlock()
+	s.Save()
+}
+
+func (s *ChatbotContextStore) Delete(key string) {
+	s.mu.Lock()
+	delete(s.Contexts, key)
+	s.mu.Unlock()
+	s.Save()
 }
 
 func (s *Service) ConnectQRCode(ctx context.Context, instanceName string, bearerToken string) (QRCodeConnectionResult, error) {
@@ -2313,25 +2373,15 @@ func (s *Service) getChatbotContextKey(instanceID string, chat watypes.JID) stri
 
 func (s *Service) getChatbotContext(instanceID string, chat watypes.JID) *ChatbotContext {
 	key := s.getChatbotContextKey(instanceID, chat)
-	s.chatbotMu.RLock()
-	ctx, exists := s.chatbotContexts[key]
-	s.chatbotMu.RUnlock()
-
-	if !exists || time.Since(ctx.LastActivity) > chatbotContextTimeout {
-		return nil
-	}
-	return ctx
+	return s.chatbotStore.Get(key)
 }
 
 func (s *Service) setChatbotContext(instanceID string, chat watypes.JID, flowID string, userMsg string, botMsg string) {
 	key := s.getChatbotContextKey(instanceID, chat)
-	s.chatbotMu.Lock()
-	defer s.chatbotMu.Unlock()
 
-	ctx, exists := s.chatbotContexts[key]
-	if !exists {
+	ctx := s.chatbotStore.Get(key)
+	if ctx == nil {
 		ctx = &ChatbotContext{}
-		s.chatbotContexts[key] = ctx
 	}
 
 	ctx.CurrentFlowID = flowID
@@ -2356,13 +2406,13 @@ func (s *Service) setChatbotContext(instanceID string, chat watypes.JID, flowID 
 	if len(ctx.History) > 20 {
 		ctx.History = ctx.History[len(ctx.History)-20:]
 	}
+
+	s.chatbotStore.Set(key, ctx)
 }
 
 func (s *Service) clearChatbotContext(instanceID string, chat watypes.JID) {
 	key := s.getChatbotContextKey(instanceID, chat)
-	s.chatbotMu.Lock()
-	delete(s.chatbotContexts, key)
-	s.chatbotMu.Unlock()
+	s.chatbotStore.Delete(key)
 }
 
 func extractMessageText(event *events.Message) string {
