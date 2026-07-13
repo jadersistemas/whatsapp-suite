@@ -181,6 +181,100 @@
                 </form>
             </div>
         </div>
+
+        {{-- Instance Settings --}}
+        <div class="bg-white rounded-xl shadow-md overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-xl font-bold text-gray-800">
+                    <i class="fas fa-cog mr-2 text-indigo-600"></i> Configurações
+                </h2>
+            </div>
+
+            <div class="p-6">
+                <form id="settings-form" onsubmit="saveSettings(event)">
+                    @csrf
+                    <div class="space-y-4">
+                        <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition cursor-pointer">
+                            <div class="flex items-center">
+                                <i class="fas fa-phone-slash mr-3 text-red-500"></i>
+                                <div>
+                                    <span class="font-medium text-gray-800">Rejeitar Chamadas</span>
+                                    <p class="text-xs text-gray-500">Rejeita todas as chamadas recebidas</p>
+                                </div>
+                            </div>
+                            <input type="checkbox" name="rejectCalls" value="1" class="w-5 h-5 text-red-600 rounded focus:ring-red-500"
+                                {{ ($instance->settings['rejectCalls'] ?? false) ? 'checked' : '' }}>
+                        </label>
+
+                        <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition cursor-pointer">
+                            <div class="flex items-center">
+                                <i class="fas fa-users-slash mr-3 text-orange-500"></i>
+                                <div>
+                                    <span class="font-medium text-gray-800">Ignorar Grupos</span>
+                                    <p class="text-xs text-gray-500">Ignora mensagens de grupos</p>
+                                </div>
+                            </div>
+                            <input type="checkbox" name="ignoreGroups" value="1" class="w-5 h-5 text-orange-600 rounded focus:ring-orange-500"
+                                {{ ($instance->settings['ignoreGroups'] ?? false) ? 'checked' : '' }}>
+                        </label>
+
+                        <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition cursor-pointer">
+                            <div class="flex items-center">
+                                <i class="fas fa-circle mr-3 text-green-500"></i>
+                                <div>
+                                    <span class="font-medium text-gray-800">Sempre Online</span>
+                                    <p class="text-xs text-gray-500">Permanece sempre online</p>
+                                </div>
+                            </div>
+                            <input type="checkbox" name="alwaysOnline" value="1" class="w-5 h-5 text-green-600 rounded focus:ring-green-500"
+                                {{ ($instance->settings['alwaysOnline'] ?? false) ? 'checked' : '' }}>
+                        </label>
+
+                        <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition cursor-pointer">
+                            <div class="flex items-center">
+                                <i class="fas fa-check-double mr-3 text-blue-500"></i>
+                                <div>
+                                    <span class="font-medium text-gray-800">Visualizar Mensagens</span>
+                                    <p class="text-xs text-gray-500">Marca todas as mensagens como lidas</p>
+                                </div>
+                            </div>
+                            <input type="checkbox" name="readMessages" value="1" class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+                                {{ ($instance->settings['readMessages'] ?? false) ? 'checked' : '' }}>
+                        </label>
+
+                        <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition cursor-pointer">
+                            <div class="flex items-center">
+                                <i class="fas fa-history mr-3 text-purple-500"></i>
+                                <div>
+                                    <span class="font-medium text-gray-800">Sincronizar Histórico</span>
+                                    <p class="text-xs text-gray-500">Sincroniza histórico completo ao conectar</p>
+                                </div>
+                            </div>
+                            <input type="checkbox" name="syncFullHistory" value="1" class="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
+                                {{ ($instance->settings['syncFullHistory'] ?? false) ? 'checked' : '' }}>
+                        </label>
+
+                        <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition cursor-pointer">
+                            <div class="flex items-center">
+                                <i class="fas fa-eye mr-3 text-teal-500"></i>
+                                <div>
+                                    <span class="font-medium text-gray-800">Visualizar Status</span>
+                                    <p class="text-xs text-gray-500">Marca todos os status como visualizados</p>
+                                </div>
+                            </div>
+                            <input type="checkbox" name="viewStatus" value="1" class="w-5 h-5 text-teal-600 rounded focus:ring-teal-500"
+                                {{ ($instance->settings['viewStatus'] ?? false) ? 'checked' : '' }}>
+                        </label>
+                    </div>
+
+                    <div id="settings-result" class="hidden mt-4"></div>
+
+                    <button type="submit" class="w-full mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition">
+                        <i class="fas fa-save mr-2"></i> Salvar Configurações
+                    </button>
+                </form>
+            </div>
+        </div>
     </div>
 </div>
 @endsection
@@ -277,5 +371,50 @@
 
     // Auto-refresh status every 30 seconds
     setInterval(refreshStatus, 30000);
+
+    async function saveSettings(e) {
+        e.preventDefault();
+        const form = document.getElementById('settings-form');
+        const result = document.getElementById('settings-result');
+        const formData = new FormData(form);
+        const settings = {};
+
+        // Get all checkbox values
+        ['rejectCalls', 'ignoreGroups', 'alwaysOnline', 'readMessages', 'syncFullHistory', 'viewStatus'].forEach(key => {
+            settings[key] = formData.has(key);
+        });
+
+        result.className = 'mt-4 p-3 rounded-lg bg-blue-100 text-blue-700';
+        result.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Salvando...';
+        result.classList.remove('hidden');
+
+        try {
+            const token = document.querySelector('meta[name="csrf-token"]').content;
+            const response = await fetch(`/instances/${instanceName}/settings`, {
+                method: 'PUT',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify(settings),
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                result.className = 'mt-4 p-3 rounded-lg bg-green-100 text-green-700';
+                result.innerHTML = '<i class="fas fa-check-circle mr-2"></i> Configurações salvas com sucesso!';
+            } else {
+                result.className = 'mt-4 p-3 rounded-lg bg-red-100 text-red-700';
+                result.innerHTML = '<i class="fas fa-times-circle mr-2"></i> Erro: ' + (data.error || 'Erro desconhecido');
+            }
+        } catch (error) {
+            result.className = 'mt-4 p-3 rounded-lg bg-red-100 text-red-700';
+            result.innerHTML = '<i class="fas fa-times-circle mr-2"></i> Erro de conexão: ' + error.message;
+        }
+
+        setTimeout(() => result.classList.add('hidden'), 5000);
+    }
 </script>
 @endpush

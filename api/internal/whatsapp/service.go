@@ -1033,6 +1033,7 @@ func (s *Service) registerEventHandlers(managed *ManagedWhatsAppClient, pairingC
 				_ = s.lock.Release(eventCtx, managed.InstanceID)
 				go s.refreshProfilePicture(eventCtx, managed)
 				s.startContactSync(managed)
+				go s.SyncFullHistory(managed)
 			}
 		case *events.Disconnected:
 			eventCtx := context.Background()
@@ -2100,6 +2101,30 @@ func (s *Service) handleInstanceSettings(managed *ManagedWhatsAppClient, event *
 		go func() {
 			_ = managed.Client.SendPresence(ctx, watypes.PresenceAvailable)
 		}()
+	}
+}
+
+// SyncFullHistory is called when instance connects to sync history
+func (s *Service) SyncFullHistory(managed *ManagedWhatsAppClient) {
+	settings := s.getInstanceSettings(managed)
+	if !settings.SyncFullHistory {
+		return
+	}
+	ctx := context.Background()
+	s.logger.Info().
+		Str("instanceName", managed.InstanceName).
+		Msg("syncing full history as per instance setting")
+
+	// Fetch app state for full sync
+	err := managed.Client.FetchAppState(ctx, "main", true, false)
+	if err != nil {
+		s.logger.Warn().Err(err).
+			Str("instanceName", managed.InstanceName).
+			Msg("failed to sync full history")
+	} else {
+		s.logger.Info().
+			Str("instanceName", managed.InstanceName).
+			Msg("full history sync requested")
 	}
 }
 
