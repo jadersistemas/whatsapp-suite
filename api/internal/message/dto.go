@@ -24,6 +24,9 @@ type LocationMessage = request.LocationMessage
 type SendReactionRequest = request.SendReactionRequest
 type ReactionMessage = request.ReactionMessage
 type ReactionKey = request.ReactionKey
+type SendButtonsRequest = request.SendButtonsRequest
+type ButtonsMessage = request.ButtonsMessage
+type Button = request.Button
 
 func recipientInput(number *string, chat *string, recipient *string) RecipientInput {
 	return RecipientInput{Number: number, Chat: chat, Recipient: recipient}

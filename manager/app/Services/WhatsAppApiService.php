@@ -171,6 +171,20 @@ class WhatsAppApiService
     }
 
     /**
+     * Send buttons message
+     */
+    public function sendButtons(string $instanceName, string $number, string $text, array $buttons): array
+    {
+        return $this->request('POST', "/message/sendButtons/{$instanceName}", [
+            'number' => $number,
+            'buttonsMessage' => [
+                'text' => $text,
+                'buttons' => $buttons,
+            ],
+        ], $instanceName);
+    }
+
+    /**
      * Set webhook
      */
     public function setWebhook(string $instanceName, string $url, bool $enabled, array $events): array

@@ -340,6 +340,34 @@ class WhatsAppController extends Controller
     }
 
     /**
+     * Send buttons message
+     */
+    public function sendButtons(Request $request, string $name)
+    {
+        $request->validate([
+            'number' => 'required|string|min:10|max:15',
+            'text' => 'required|string|max:1024',
+            'buttons' => 'required|array|min:1|max:3',
+            'buttons.*.type' => 'required|string|in:quick_reply,url',
+            'buttons.*.id' => 'required_if:buttons.*.type,quick_reply|string',
+            'buttons.*.title' => 'required|string|max:20',
+            'buttons.*.url' => 'required_if:buttons.*.type,url|url',
+        ]);
+
+        $result = $this->api->sendButtons($name, $request->number, $request->text, $request->buttons);
+
+        if ($result['success']) {
+            return $request->expectsJson()
+                ? response()->json(['success' => true, 'message' => 'Botões enviados com sucesso!', 'data' => $result['data']])
+                : back()->with('success', 'Botões enviados com sucesso!');
+        }
+
+        return $request->expectsJson()
+            ? response()->json(['success' => false, 'error' => $result['error'] ?? 'Erro desconhecido'], 400)
+            : back()->with('error', 'Erro ao enviar botões: ' . ($result['error'] ?? 'Erro desconhecido'));
+    }
+
+    /**
      * Webhook settings page
      */
     public function webhookSettings(string $name)

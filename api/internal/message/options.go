@@ -24,6 +24,7 @@ const (
 	KindPTV      MessageKind = "ptv"
 	KindContact  MessageKind = "contact"
 	KindLocation MessageKind = "location"
+	KindButtons  MessageKind = "buttons"
 )
 
 func validateOptions(options *MessageOptions, kind MessageKind) (*string, time.Duration, error) {

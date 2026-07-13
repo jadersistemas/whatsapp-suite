@@ -109,3 +109,23 @@ type ReactionKey struct {
 	ID          string  `json:"id"`
 	Participant *string `json:"participant"`
 }
+
+type SendButtonsRequest struct {
+	Number         *string          `json:"number"`
+	Chat           *string          `json:"chat"`
+	Recipient      *string          `json:"recipient"`
+	Options        *MessageOptions  `json:"options"`
+	ButtonsMessage *ButtonsMessage  `json:"buttonsMessage"`
+}
+
+type ButtonsMessage struct {
+	Text       string    `json:"text"`
+	Buttons    []Button  `json:"buttons"`
+}
+
+type Button struct {
+	Type  string `json:"type"`
+	ID    string `json:"id"`
+	Title string `json:"title"`
+	URL   string `json:"url,omitempty"`
+}

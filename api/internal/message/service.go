@@ -55,6 +55,7 @@ type Service interface {
 	SendContact(ctx context.Context, instanceName string, bearerToken string, input SendContactRequest) (SendResult, error)
 	SendLocation(ctx context.Context, instanceName string, bearerToken string, input SendLocationRequest) (SendResult, error)
 	SendReaction(ctx context.Context, instanceName string, bearerToken string, input SendReactionRequest) (SendResult, error)
+	SendButtons(ctx context.Context, instanceName string, bearerToken string, input SendButtonsRequest) (SendResult, error)
 }
 
 type MessageService struct {
@@ -202,6 +203,62 @@ func (s *MessageService) SendMedia(ctx context.Context, instanceName string, bea
 				return nil, "", nil, fmt.Errorf("%w: %w", ErrUploadFailed, err)
 			}
 			return buildMediaProto(kind, media, mimeType, upload, quoted, thumbnail.Bytes)
+		},
+	})
+}
+
+func (s *MessageService) SendButtons(ctx context.Context, instanceName string, bearerToken string, input SendButtonsRequest) (SendResult, error) {
+	text, buttons, err := validateButtons(input.ButtonsMessage)
+	if err != nil {
+		return SendResult{}, err
+	}
+	return s.send(ctx, instanceName, bearerToken, outboundRequest{
+		Recipient: recipientInput(input.Number, input.Chat, input.Recipient),
+		Options:   input.Options,
+		Kind:      KindButtons,
+		Build: func(ctx context.Context, client *whatsmeow.Client, quoted *wae2e.ContextInfo) (*wae2e.Message, string, map[string]any, error) {
+			_ = ctx
+			_ = client
+			protoButtons := make([]*wae2e.TemplateButton, len(buttons))
+			for i, btn := range buttons {
+				protoBtn := &wae2e.TemplateButton{
+					Index: proto.Uint32(uint32(i)),
+				}
+				switch btn.Type {
+				case "quick_reply":
+					protoBtn.Type = &wae2e.TemplateButton_QuickReply{
+						QuickReply: &wae2e.TemplateButton_QuickReplyButton{
+							ID:   proto.String(btn.ID),
+							Text: proto.String(btn.Title),
+						},
+					}
+				case "url":
+					protoBtn.Type = &wae2e.TemplateButton_URL{
+						URL: &wae2e.TemplateButton_URLButton{
+							Text:   proto.String(btn.Title),
+							Url:    proto.String(btn.URL),
+							Layout: wae2e.TemplateButton_URL.Enum(),
+						},
+					}
+				}
+				protoButtons[i] = protoBtn
+			}
+
+			msg := &wae2e.Message{
+				TemplateMessage: &wae2e.TemplateMessage{
+					Text:       proto.String(text),
+					Buttons:    protoButtons,
+					ContextInfo: quoted,
+				},
+			}
+			content := map[string]any{
+				"text":    text,
+				"buttons": buttons,
+			}
+			if quoted != nil {
+				content["contextInfo"] = contextInfoContent(quoted)
+			}
+			return msg, "templateMessage", content, nil
 		},
 	})
 }
@@ -542,6 +599,37 @@ func validateText(input *TextMessage) (string, error) {
 		return "", fmt.Errorf("%w: text too long", ErrInvalidRequest)
 	}
 	return input.Text, nil
+}
+
+func validateButtons(input *ButtonsMessage) (string, []Button, error) {
+	if input == nil {
+		return "", nil, fmt.Errorf("%w: buttonsMessage is required", ErrInvalidRequest)
+	}
+	if strings.TrimSpace(input.Text) == "" {
+		return "", nil, fmt.Errorf("%w: buttonsMessage.text is required", ErrInvalidRequest)
+	}
+	if len(input.Buttons) == 0 {
+		return "", nil, fmt.Errorf("%w: buttonsMessage.buttons is required", ErrInvalidRequest)
+	}
+	if len(input.Buttons) > 3 {
+		return "", nil, fmt.Errorf("%w: maximum 3 buttons allowed", ErrInvalidRequest)
+	}
+	for i, btn := range input.Buttons {
+		if strings.TrimSpace(btn.Title) == "" {
+			return "", nil, fmt.Errorf("%w: button[%d].title is required", ErrInvalidRequest, i)
+		}
+		btnType := strings.ToLower(strings.TrimSpace(btn.Type))
+		if btnType != "quick_reply" && btnType != "url" {
+			return "", nil, fmt.Errorf("%w: button[%d].type must be 'quick_reply' or 'url'", ErrInvalidRequest, i)
+		}
+		if btnType == "quick_reply" && strings.TrimSpace(btn.ID) == "" {
+			return "", nil, fmt.Errorf("%w: button[%d].id is required for quick_reply", ErrInvalidRequest, i)
+		}
+		if btnType == "url" && strings.TrimSpace(btn.URL) == "" {
+			return "", nil, fmt.Errorf("%w: button[%d].url is required for url type", ErrInvalidRequest, i)
+		}
+	}
+	return input.Text, input.Buttons, nil
 }
 
 func validateLink(input *LinkMessage) (string, *string, *string, *string, error) {
