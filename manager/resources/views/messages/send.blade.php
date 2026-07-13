@@ -43,6 +43,9 @@
         <button onclick="showTab('reaction')" id="tab-reaction" class="tab-btn px-4 py-2 rounded-lg font-medium text-sm transition">
             <i class="fas fa-smile mr-1"></i> Reação
         </button>
+        <button onclick="showTab('buttons')" id="tab-buttons" class="tab-btn px-4 py-2 rounded-lg font-medium text-sm transition">
+            <i class="fas fa-hand-pointer mr-1"></i> Botões
+        </button>
         <button onclick="showTab('check')" id="tab-check" class="tab-btn px-4 py-2 rounded-lg font-medium text-sm transition">
             <i class="fas fa-search mr-1"></i> Verificar Nº
         </button>
@@ -239,6 +242,45 @@
 
 @endsection
 
+{{-- ========== BOTÕES ========== --}}
+<div id="panel-buttons" class="tab-panel hidden bg-white rounded-xl shadow-md overflow-hidden">
+    <div class="bg-indigo-600 px-6 py-4">
+        <h2 class="text-white font-bold text-lg"><i class="fas fa-hand-pointer mr-2"></i> Enviar Botões</h2>
+    </div>
+    <div class="p-6">
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Texto da Mensagem <span class="text-red-500">*</span></label>
+            <input type="text" id="btn-text" placeholder="Escolha uma opção:"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+        </div>
+
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Botões (máx. 3)</label>
+            <div id="buttons-list" class="space-y-3">
+                <div class="button-row flex gap-2 items-start">
+                    <select class="btn-type px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                        <option value="quick_reply">Resposta Rápida</option>
+                        <option value="url">URL</option>
+                    </select>
+                    <input type="text" class="btn-id px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" placeholder="ID" maxlength="20">
+                    <input type="text" class="btn-title px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" placeholder="Título" maxlength="20">
+                    <input type="url" class="btn-url px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 hidden" placeholder="https://...">
+                    <button onclick="removeButton(this)" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            <button onclick="addButton()" id="add-btn" class="mt-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded-lg transition">
+                <i class="fas fa-plus mr-1"></i> Adicionar Botão
+            </button>
+        </div>
+
+        <button onclick="sendTest('buttons')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition">
+            <i class="fas fa-hand-pointer mr-2"></i> Enviar Botões
+        </button>
+    </div>
+</div>
+
 @push('scripts')
 <style>
     .tab-btn { color: #6b7280; background: #f3f4f6; }
@@ -332,6 +374,36 @@
                 body.emoji = document.getElementById('reaction-emoji').value;
                 if (!body.message_id) { showResult(false, 'Digite o ID da mensagem'); return; }
             }
+            else if (type === 'buttons') {
+                body.text = document.getElementById('btn-text').value;
+                if (!body.text) { showResult(false, 'Digite o texto da mensagem'); return; }
+
+                const rows = document.querySelectorAll('.button-row');
+                const buttons = [];
+                rows.forEach(row => {
+                    const type = row.querySelector('.btn-type').value;
+                    const id = row.querySelector('.btn-id').value;
+                    const title = row.querySelector('.btn-title').value;
+                    const url = row.querySelector('.btn-url').value;
+
+                    if (!title) { showResult(false, 'Preencha o título de todos os botões'); return; }
+
+                    const btn = { type, title };
+                    if (type === 'quick_reply') {
+                        if (!id) { showResult(false, 'Preencha o ID dos botões de resposta rápida'); return; }
+                        btn.id = id;
+                    } else {
+                        if (!url) { showResult(false, 'Preencha a URL dos botões de link'); return; }
+                        btn.url = url;
+                    }
+                    buttons.push(btn);
+                });
+
+                if (buttons.length === 0) { showResult(false, 'Adicione pelo menos 1 botão'); return; }
+                if (buttons.length > 3) { showResult(false, 'Máximo de 3 botões'); return; }
+
+                body.buttons = buttons;
+            }
             else if (type === 'check') {
                 body.number = number;
                 if (!number) { showResult(false, 'Digite o número para verificar'); return; }
@@ -407,5 +479,52 @@
             preview.classList.add('hidden');
         }
     });
+
+    function addButton() {
+        const list = document.getElementById('buttons-list');
+        if (list.children.length >= 3) return;
+
+        const row = document.createElement('div');
+        row.className = 'button-row flex gap-2 items-start';
+        row.innerHTML = `
+            <select class="btn-type px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" onchange="toggleBtnUrl(this)">
+                <option value="quick_reply">Resposta Rápida</option>
+                <option value="url">URL</option>
+            </select>
+            <input type="text" class="btn-id px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" placeholder="ID" maxlength="20">
+            <input type="text" class="btn-title px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" placeholder="Título" maxlength="20">
+            <input type="url" class="btn-url px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 hidden" placeholder="https://...">
+            <button onclick="removeButton(this)" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg">
+                <i class="fas fa-trash"></i>
+            </button>
+        `;
+        list.appendChild(row);
+        updateAddButton();
+    }
+
+    function removeButton(btn) {
+        btn.closest('.button-row').remove();
+        updateAddButton();
+    }
+
+    function toggleBtnUrl(select) {
+        const row = select.closest('.button-row');
+        const idInput = row.querySelector('.btn-id');
+        const urlInput = row.querySelector('.btn-url');
+
+        if (select.value === 'url') {
+            idInput.classList.add('hidden');
+            urlInput.classList.remove('hidden');
+        } else {
+            idInput.classList.remove('hidden');
+            urlInput.classList.add('hidden');
+        }
+    }
+
+    function updateAddButton() {
+        const list = document.getElementById('buttons-list');
+        const addBtn = document.getElementById('add-btn');
+        addBtn.style.display = list.children.length >= 3 ? 'none' : 'inline-block';
+    }
 </script>
 @endpush
