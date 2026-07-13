@@ -67,6 +67,14 @@ class WhatsAppApiService
     }
 
     /**
+     * Fetch instance details
+     */
+    public function fetchInstance(string $instanceName): array
+    {
+        return $this->request('GET', "/instance/fetchInstance/{$instanceName}", [], $instanceName);
+    }
+
+    /**
      * Logout instance
      */
     public function logout(string $instanceName): array

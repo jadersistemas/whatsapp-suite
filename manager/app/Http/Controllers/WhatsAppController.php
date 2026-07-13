@@ -109,6 +109,15 @@ class WhatsAppController extends Controller
             }
         }
 
+        // Sync externalAttributes from API
+        $fetchResult = $this->api->fetchInstance($name);
+        if ($fetchResult['success'] && isset($fetchResult['data']['externalAttributes'])) {
+            $attrs = $fetchResult['data']['externalAttributes'];
+            if (!empty($attrs) && is_array($attrs)) {
+                $instance->update(['external_attributes' => $attrs]);
+            }
+        }
+
         return view('instances.show', compact('instance', 'status', 'webhook'));
     }
 

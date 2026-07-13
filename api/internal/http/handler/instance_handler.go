@@ -222,16 +222,17 @@ func mapListItem(item types.InstanceDetails) response.InstanceListItemResponse {
 
 func mapFetchItem(item types.InstanceDetails) response.InstanceFetchResponse {
 	return response.InstanceFetchResponse{
-		ID:               item.Instance.ID,
-		Name:             item.Instance.Name,
-		Description:      item.Instance.Description,
-		Status:           item.Instance.Status,
-		ConnectionStatus: item.Instance.ConnectionStatus,
-		OwnerJid:         item.Instance.OwnerJid,
-		ProfilePicURL:    item.Instance.ProfilePicUrl,
-		CreatedAt:        timePtr(item.Instance.CreatedAt),
-		UpdatedAt:        timePtr(item.Instance.UpdatedAt),
-		Webhook:          mapWebhook(item.Webhook),
+		ID:                 item.Instance.ID,
+		Name:               item.Instance.Name,
+		Description:        item.Instance.Description,
+		Status:             item.Instance.Status,
+		ConnectionStatus:   item.Instance.ConnectionStatus,
+		OwnerJid:           item.Instance.OwnerJid,
+		ProfilePicURL:      item.Instance.ProfilePicUrl,
+		CreatedAt:          timePtr(item.Instance.CreatedAt),
+		UpdatedAt:          timePtr(item.Instance.UpdatedAt),
+		Webhook:            mapWebhook(item.Webhook),
+		ExternalAttributes: item.Instance.ExternalAttributes,
 	}
 }
 

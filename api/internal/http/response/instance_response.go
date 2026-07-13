@@ -39,16 +39,17 @@ type InstanceListItemResponse struct {
 }
 
 type InstanceFetchResponse struct {
-	ID               int32                          `json:"id"`
-	Name             string                         `json:"name"`
-	Description      *string                        `json:"description"`
-	Status           types.InstanceStatus           `json:"status"`
-	ConnectionStatus types.InstanceConnectionStatus `json:"connectionStatus"`
-	OwnerJid         *string                        `json:"ownerJid"`
-	ProfilePicURL    *string                        `json:"profilePicUrl"`
-	CreatedAt        *time.Time                     `json:"createdAt"`
-	UpdatedAt        *time.Time                     `json:"updatedAt"`
-	Webhook          *WebhookResponse               `json:"Webhook"`
+	ID                 int32                          `json:"id"`
+	Name               string                         `json:"name"`
+	Description        *string                        `json:"description"`
+	Status             types.InstanceStatus           `json:"status"`
+	ConnectionStatus   types.InstanceConnectionStatus `json:"connectionStatus"`
+	OwnerJid           *string                        `json:"ownerJid"`
+	ProfilePicURL      *string                        `json:"profilePicUrl"`
+	CreatedAt          *time.Time                     `json:"createdAt"`
+	UpdatedAt          *time.Time                     `json:"updatedAt"`
+	Webhook            *WebhookResponse               `json:"Webhook"`
+	ExternalAttributes json.RawMessage                `json:"externalAttributes,omitempty"`
 }
 
 type InstanceAuthResponse struct {
