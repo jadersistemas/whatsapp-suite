@@ -245,7 +245,7 @@
 
         try {
             // Fetch all messages and filter by normalized JID
-            const response = await fetch(`/instances/${instanceName}/messages?limit=200`, {
+            const response = await fetch(`/instances/${instanceName}/messages?limit=500`, {
                 headers: {
                     'Accept': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',
@@ -262,8 +262,10 @@
             if (data.messages && data.messages.records) {
                 const filtered = data.messages.records.filter(msg => {
                     if (!msg.keyRemoteJid) return false;
-                    return normalizeJid(msg.keyRemoteJid) === currentChat;
+                    const normalized = normalizeJid(msg.keyRemoteJid);
+                    return normalized === currentChat;
                 });
+                console.log('Current chat:', currentChat, 'Filtered:', filtered.length, 'Total:', data.messages.records.length);
                 renderMessages(filtered.reverse());
             } else {
                 container.innerHTML = '<div class="text-center text-yellow-500 py-4">Nenhuma mensagem encontrada</div>';
@@ -276,8 +278,10 @@
     function renderMessages(messages) {
         const container = document.getElementById('chat-messages');
 
+        console.log('renderMessages called with', messages.length, 'messages');
+
         if (!messages || messages.length === 0) {
-            container.innerHTML = '<div class="flex items-center justify-center h-full text-gray-500"><p>Nenhuma mensagem</p></div>';
+            container.innerHTML = '<div class="flex items-center justify-center h-full text-gray-500"><p>Nenhuma mensagem encontrada para esta conversa</p></div>';
             return;
         }
 
