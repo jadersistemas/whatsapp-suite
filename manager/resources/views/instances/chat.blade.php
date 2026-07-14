@@ -129,22 +129,22 @@
         const jid = msg.keyRemoteJid;
         if (!jid) return;
 
-        const normalizedJid = normalizeJid(jid);
+        const displayJid = normalizeJid(jid);
 
-        // Update contact
-        if (!allContacts[normalizedJid]) {
-            allContacts[normalizedJid] = { jid: normalizedJid, name: formatJidName(normalizedJid), lastMessage: '', time: '', unread: 0 };
+        // Update contact - store original JID for queries
+        if (!allContacts[displayJid]) {
+            allContacts[displayJid] = { displayJid, originalJid: jid, name: formatJidName(displayJid), lastMessage: '', time: '', unread: 0 };
         }
-        allContacts[normalizedJid].lastMessage = parseContent(msg);
-        allContacts[normalizedJid].time = formatTime(msg.messageTimestamp);
-        if (!msg.keyFromMe) allContacts[normalizedJid].unread++;
+        allContacts[displayJid].lastMessage = parseContent(msg);
+        allContacts[displayJid].time = formatTime(msg.messageTimestamp);
+        if (!msg.keyFromMe) allContacts[displayJid].unread++;
 
         renderContacts();
 
         // If viewing this chat, add message
-        if (normalizedJid === currentChat) {
+        if (displayJid === currentChat) {
             appendMessage(msg);
-            allContacts[normalizedJid].unread = 0;
+            allContacts[displayJid].unread = 0;
             renderContacts();
         }
     }
@@ -171,12 +171,12 @@
                 data.messages.records.reverse().forEach(msg => {
                     const jid = msg.keyRemoteJid;
                     if (!jid) return;
-                    const normalizedJid = normalizeJid(jid);
-                    if (!allContacts[normalizedJid]) {
-                        allContacts[normalizedJid] = { jid: normalizedJid, name: formatJidName(normalizedJid), lastMessage: '', time: '', unread: 0 };
+                    const displayJid = normalizeJid(jid);
+                    if (!allContacts[displayJid]) {
+                        allContacts[displayJid] = { displayJid, originalJid: jid, name: formatJidName(displayJid), lastMessage: '', time: '', unread: 0 };
                     }
-                    allContacts[normalizedJid].lastMessage = parseContent(msg);
-                    allContacts[normalizedJid].time = formatTime(msg.messageTimestamp);
+                    allContacts[displayJid].lastMessage = parseContent(msg);
+                    allContacts[displayJid].time = formatTime(msg.messageTimestamp);
                 });
                 renderContacts();
             }
@@ -194,7 +194,7 @@
         });
 
         container.innerHTML = sorted.map(c => `
-            <div class="contact-item ${c.jid === currentChat ? 'active' : ''}" onclick="selectChat('${c.jid}')">
+            <div class="contact-item ${c.displayJid === currentChat ? 'active' : ''}" onclick="selectChat('${c.displayJid}')">
                 <div class="flex items-center">
                     <div class="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center mr-3 flex-shrink-0">
                         <span class="text-white font-bold text-lg">${c.name.charAt(0).toUpperCase()}</span>
@@ -222,16 +222,17 @@
         });
     }
 
-    async function selectChat(jid) {
-        currentChat = jid;
-        const number = jid.replace('@s.whatsapp.net', '').replace('@g.us', '');
+    async function selectChat(displayJid) {
+        currentChat = displayJid;
+        const originalJid = allContacts[displayJid] ? allContacts[displayJid].originalJid : displayJid;
+        const number = originalJid.replace('@s.whatsapp.net', '').replace('@g.us', '');
         document.getElementById('chat-number').value = number;
-        document.getElementById('chat-name').textContent = formatJidName(jid);
+        document.getElementById('chat-name').textContent = formatJidName(displayJid);
         document.getElementById('chat-status').textContent = 'online';
         document.getElementById('chat-input-area').style.display = 'block';
 
         // Reset unread
-        if (allContacts[jid]) allContacts[jid].unread = 0;
+        if (allContacts[displayJid]) allContacts[displayJid].unread = 0;
         renderContacts();
 
         await loadChat();
@@ -244,7 +245,8 @@
         container.innerHTML = '<div class="flex justify-center py-4"><div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div>';
 
         try {
-            const response = await fetch(`/instances/${instanceName}/messages?chatJid=${currentChat}&limit=100`);
+            const originalJid = allContacts[currentChat] ? allContacts[currentChat].originalJid : currentChat;
+            const response = await fetch(`/instances/${instanceName}/messages?chatJid=${encodeURIComponent(originalJid)}&limit=100`);
             const data = await response.json();
 
             if (data.messages && data.messages.records) {
