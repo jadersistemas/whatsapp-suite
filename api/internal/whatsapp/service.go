@@ -2436,31 +2436,34 @@ func (s *Service) handleChatbotFlow(managed *ManagedWhatsAppClient, settings Ins
 	chatCtx := s.getChatbotContext(managed.InstanceID, chat)
 
 	// If user is in a flow and types a number, handle as option selection
-	if chatCtx != nil && chatCtx.CurrentFlowID != "" && len(lowerMsg) == 1 && lowerMsg[0] >= '1' && lowerMsg[0] <= '9' {
-		optIndex := int(lowerMsg[0] - '1')
-		for _, flow := range settings.ChatbotFlows {
-			if flow.ID == chatCtx.CurrentFlowID && optIndex < len(flow.Options) {
-				opt := flow.Options[optIndex]
-				if opt.Next != "" {
-					for _, nextFlow := range settings.ChatbotFlows {
-						if nextFlow.ID == opt.Next {
-							s.setChatbotContext(managed.InstanceID, chat, nextFlow.ID, userMessage, nextFlow.Message)
-							s.sendChatMessage(managed, ctx, chat, nextFlow.Message)
-							if len(nextFlow.Options) > 0 {
-								optionsText := "\n\n"
-								for i, o := range nextFlow.Options {
-									optionsText += fmt.Sprintf("*%d.* %s\n", i+1, o.Text)
+	if chatCtx != nil && chatCtx.CurrentFlowID != "" {
+		optNum := parseOptionNumber(lowerMsg)
+		if optNum > 0 {
+			optIndex := optNum - 1
+			for _, flow := range settings.ChatbotFlows {
+				if flow.ID == chatCtx.CurrentFlowID && optIndex < len(flow.Options) {
+					opt := flow.Options[optIndex]
+					if opt.Next != "" {
+						for _, nextFlow := range settings.ChatbotFlows {
+							if nextFlow.ID == opt.Next {
+								s.setChatbotContext(managed.InstanceID, chat, nextFlow.ID, userMessage, nextFlow.Message)
+								s.sendChatMessage(managed, ctx, chat, nextFlow.Message)
+								if len(nextFlow.Options) > 0 {
+									optionsText := "\n\n"
+									for i, o := range nextFlow.Options {
+										optionsText += fmt.Sprintf("*%d.* %s\n", i+1, o.Text)
+									}
+									s.sendChatMessage(managed, ctx, chat, optionsText)
 								}
-								s.sendChatMessage(managed, ctx, chat, optionsText)
+								return
 							}
-							return
 						}
 					}
+					// No next flow, send option text and clear context
+					s.clearChatbotContext(managed.InstanceID, chat)
+					s.sendChatMessage(managed, ctx, chat, opt.Text)
+					return
 				}
-				// No next flow, send option text and clear context
-				s.clearChatbotContext(managed.InstanceID, chat)
-				s.sendChatMessage(managed, ctx, chat, opt.Text)
-				return
 			}
 		}
 	}
@@ -2492,9 +2495,10 @@ func (s *Service) handleChatbotFlow(managed *ManagedWhatsAppClient, settings Ins
 		}
 	}
 
-	// Check if user selected an option (number 1-9) without context
-	if len(lowerMsg) == 1 && lowerMsg[0] >= '1' && lowerMsg[0] <= '9' {
-		optIndex := int(lowerMsg[0] - '1')
+	// Check if user selected an option (any number) without context
+	optNum := parseOptionNumber(lowerMsg)
+	if optNum > 0 {
+		optIndex := optNum - 1
 		for _, flow := range settings.ChatbotFlows {
 			if optIndex < len(flow.Options) {
 				opt := flow.Options[optIndex]
@@ -2524,6 +2528,25 @@ func (s *Service) handleChatbotFlow(managed *ManagedWhatsAppClient, settings Ins
 	if settings.AutoReply {
 		s.sendAutoReply(managed, settings, chat)
 	}
+}
+
+func parseOptionNumber(s string) int {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0
+	}
+	num := 0
+	for _, c := range s {
+		if c >= '0' && c <= '9' {
+			num = num*10 + int(c-'0')
+		} else {
+			return 0
+		}
+	}
+	if num < 1 || num > 99 {
+		return 0
+	}
+	return num
 }
 
 func (s *Service) sendChatMessage(managed *ManagedWhatsAppClient, ctx context.Context, chat watypes.JID, text string) {
