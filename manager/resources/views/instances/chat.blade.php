@@ -238,6 +238,7 @@
         try {
             // Fetch all messages and filter by normalized JID
             const response = await fetch(`/instances/${instanceName}/messages?limit=500`, {
+                credentials: 'same-origin',
                 headers: {
                     'Accept': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',
@@ -359,6 +360,7 @@
             const csrfToken = '{{ csrf_token() }}';
             await fetch(`/messages/${instanceName}/text`, {
                 method: 'POST',
+                credentials: 'same-origin',
                 headers: {
                     'X-CSRF-TOKEN': csrfToken,
                     'Content-Type': 'application/json',
