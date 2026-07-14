@@ -350,7 +350,7 @@ func (r *messageRepository) composeMessages(ctx context.Context, messages []db.M
 }
 
 func countMessagesParams(instanceID int32, filters types.MessageFilters) db.CountMessagesParams {
-	params := db.CountMessagesParams{Instanceid: instanceID}
+	params := db.CountMessagesParams{Instanceid: instanceID, Device: db.DeviceMessageUnknown}
 	applyMessageFilters(&params, filters)
 	return params
 }
@@ -359,6 +359,7 @@ func listMessagesNextParams(instanceID int32, input types.ListMessagesInput) db.
 	params := db.ListMessagesNextParams{
 		Instanceid: instanceID,
 		Limitcount: input.Limit,
+		Device:     db.DeviceMessageUnknown,
 	}
 	if input.Cursor != nil {
 		params.Hascursor = true
@@ -372,6 +373,7 @@ func listMessagesPreviousParams(instanceID int32, input types.ListMessagesInput)
 	params := db.ListMessagesPreviousParams{
 		Instanceid: instanceID,
 		Limitcount: input.Limit,
+		Device:     db.DeviceMessageUnknown,
 	}
 	if input.Cursor != nil {
 		params.Hascursor = true
@@ -382,7 +384,7 @@ func listMessagesPreviousParams(instanceID int32, input types.ListMessagesInput)
 }
 
 func countMessagesBeforeIDParams(instanceID int32, id int32, filters types.MessageFilters) db.CountMessagesBeforeIDParams {
-	params := db.CountMessagesBeforeIDParams{Instanceid: instanceID, ID: id}
+	params := db.CountMessagesBeforeIDParams{Instanceid: instanceID, ID: id, Device: db.DeviceMessageUnknown}
 	applyMessageFilters(&params, filters)
 	return params
 }
@@ -417,7 +419,7 @@ func applyCountFilters(p *db.CountMessagesParams, filters types.MessageFilters) 
 	if filters.MessageType != nil {
 		p.Filtermessagetype, p.Messagetype = true, *filters.MessageType
 	}
-	if filters.Device != nil {
+	if filters.Device != nil && *filters.Device != "" {
 		p.Filterdevice, p.Device = true, db.DeviceMessage(*filters.Device)
 	}
 	if filters.MessageTimestampGTE != nil {
@@ -432,7 +434,7 @@ func applyCountFilters(p *db.CountMessagesParams, filters types.MessageFilters) 
 }
 
 func applyNextFilters(p *db.ListMessagesNextParams, filters types.MessageFilters) {
-	count := db.CountMessagesParams{}
+	count := db.CountMessagesParams{Device: db.DeviceMessageUnknown}
 	applyCountFilters(&count, filters)
 	p.Filterkeyid, p.Keyid = count.Filterkeyid, count.Keyid
 	p.Filterkeyremotejid, p.Keyremotejid = count.Filterkeyremotejid, count.Keyremotejid
