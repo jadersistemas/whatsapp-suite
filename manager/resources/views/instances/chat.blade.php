@@ -129,22 +129,36 @@
         const jid = msg.keyRemoteJid;
         if (!jid) return;
 
+        const normalizedJid = normalizeJid(jid);
+
         // Update contact
-        if (!allContacts[jid]) {
-            allContacts[jid] = { jid, name: jid.replace('@s.whatsapp.net', '').replace('@g.us', ' (grupo)'), lastMessage: '', time: '', unread: 0 };
+        if (!allContacts[normalizedJid]) {
+            allContacts[normalizedJid] = { jid: normalizedJid, name: formatJidName(normalizedJid), lastMessage: '', time: '', unread: 0 };
         }
-        allContacts[jid].lastMessage = parseContent(msg);
-        allContacts[jid].time = formatTime(msg.messageTimestamp);
-        if (!msg.keyFromMe) allContacts[jid].unread++;
+        allContacts[normalizedJid].lastMessage = parseContent(msg);
+        allContacts[normalizedJid].time = formatTime(msg.messageTimestamp);
+        if (!msg.keyFromMe) allContacts[normalizedJid].unread++;
 
         renderContacts();
 
         // If viewing this chat, add message
-        if (jid === currentChat) {
+        if (normalizedJid === currentChat) {
             appendMessage(msg);
-            allContacts[jid].unread = 0;
+            allContacts[normalizedJid].unread = 0;
             renderContacts();
         }
+    }
+
+    function normalizeJid(jid) {
+        // Remove device suffix (:XX) from JID
+        return jid.replace(/:\d+$/, '');
+    }
+
+    function formatJidName(jid) {
+        const number = jid.replace('@s.whatsapp.net', '').replace('@g.us', '');
+        if (jid.includes('@g.us')) return 'Grupo ' + number;
+        if (jid === 'status@broadcast') return 'Status';
+        return number;
     }
 
     async function loadContacts() {
@@ -157,11 +171,12 @@
                 data.messages.records.reverse().forEach(msg => {
                     const jid = msg.keyRemoteJid;
                     if (!jid) return;
-                    if (!allContacts[jid]) {
-                        allContacts[jid] = { jid, name: jid.replace('@s.whatsapp.net', '').replace('@g.us', ' (grupo)'), lastMessage: '', time: '', unread: 0 };
+                    const normalizedJid = normalizeJid(jid);
+                    if (!allContacts[normalizedJid]) {
+                        allContacts[normalizedJid] = { jid: normalizedJid, name: formatJidName(normalizedJid), lastMessage: '', time: '', unread: 0 };
                     }
-                    allContacts[jid].lastMessage = parseContent(msg);
-                    allContacts[jid].time = formatTime(msg.messageTimestamp);
+                    allContacts[normalizedJid].lastMessage = parseContent(msg);
+                    allContacts[normalizedJid].time = formatTime(msg.messageTimestamp);
                 });
                 renderContacts();
             }
@@ -209,8 +224,9 @@
 
     async function selectChat(jid) {
         currentChat = jid;
-        document.getElementById('chat-number').value = jid.replace('@s.whatsapp.net', '').replace('@g.us', '');
-        document.getElementById('chat-name').textContent = jid.replace('@s.whatsapp.net', '').replace('@g.us', ' (Grupo)');
+        const number = jid.replace('@s.whatsapp.net', '').replace('@g.us', '');
+        document.getElementById('chat-number').value = number;
+        document.getElementById('chat-name').textContent = formatJidName(jid);
         document.getElementById('chat-status').textContent = 'online';
         document.getElementById('chat-input-area').style.display = 'block';
 
