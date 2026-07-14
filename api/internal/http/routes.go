@@ -82,6 +82,7 @@ func RegisterRoutes(
 		messages.Post("/sendContact/:instanceName", instanceAuthMiddleware, messageHandler.SendContact)
 		messages.Post("/sendLocation/:instanceName", instanceAuthMiddleware, messageHandler.SendLocation)
 		messages.Post("/sendReaction/:instanceName", instanceAuthMiddleware, messageHandler.SendReaction)
+		messages.Get("/list/:instanceName", instanceAuthMiddleware, messageHandler.ListMessages)
 	}
 
 	if chatHandler != nil {

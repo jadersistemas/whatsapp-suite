@@ -440,6 +440,33 @@ class WhatsAppController extends Controller
     }
 
     /**
+     * Chat page
+     */
+    public function chat(string $name)
+    {
+        $instance = WhatsAppInstance::where('name', $name)->firstOrFail();
+        return view('instances.chat', compact('instance'));
+    }
+
+    /**
+     * Get messages for chat
+     */
+    public function getMessages(Request $request, string $name)
+    {
+        $chatJid = $request->query('chatJid', '');
+        $limit = $request->query('limit', 50);
+        $cursor = $request->query('cursor') ? (int) $request->query('cursor') : null;
+
+        $result = $this->api->listMessages($name, $chatJid, $limit, $cursor);
+
+        if ($result['success']) {
+            return response()->json($result['data']);
+        }
+
+        return response()->json(['error' => $result['error'] ?? 'Erro ao buscar mensagens'], 500);
+    }
+
+    /**
      * Update instance settings
      */
     public function updateSettings(Request $request, string $name)

@@ -24,6 +24,12 @@ Route::prefix('instances')->name('whatsapp.')->group(function () {
     Route::post('/{name}/connect/pairing', [WhatsAppController::class, 'connectPairing'])->name('connect.pairing');
     Route::get('/{name}/connection-state', [WhatsAppController::class, 'connectionState'])->name('connection-state');
     Route::put('/{name}/settings', [WhatsAppController::class, 'updateSettings'])->name('settings');
+    Route::get('/{name}/chat', [WhatsAppController::class, 'chat'])->name('chat');
+});
+
+// Chat messages API
+Route::prefix('instances/{name}/messages')->name('chat.')->group(function () {
+    Route::get('/', [WhatsAppController::class, 'getMessages'])->name('list');
 });
 
 // Messages

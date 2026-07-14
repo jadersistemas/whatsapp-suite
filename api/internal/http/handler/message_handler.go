@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/rs/zerolog"
@@ -20,6 +21,34 @@ func NewMessageHandler(service message.Service, logger zerolog.Logger) *MessageH
 		service: service,
 		logger:  logger.With().Str("component", "message_handler").Logger(),
 	}
+}
+
+func (h *MessageHandler) ListMessages(c fiber.Ctx) error {
+	token, err := bearerToken(c)
+	if err != nil {
+		return err
+	}
+
+	instanceName := c.Params("instanceName")
+	chatJid := c.Query("chatJid", "")
+	limit := int32(50)
+	if l, err := strconv.Atoi(c.Query("limit", "50")); err == nil && l > 0 && l <= 200 {
+		limit = int32(l)
+	}
+	var cursor *int32
+	if c.Query("cursor", "") != "" {
+		if c, err := strconv.ParseInt(c.Query("cursor", ""), 10, 32); err == nil {
+			v := int32(c)
+			cursor = &v
+		}
+	}
+
+	result, err := h.service.ListMessages(c.Context(), instanceName, token, chatJid, limit, cursor)
+	if err != nil {
+		return err
+	}
+
+	return c.Status(fiber.StatusOK).JSON(result)
 }
 
 func (h *MessageHandler) SendText(c fiber.Ctx) error {

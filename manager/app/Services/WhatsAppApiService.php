@@ -75,6 +75,21 @@ class WhatsAppApiService
     }
 
     /**
+     * List messages for an instance
+     */
+    public function listMessages(string $instanceName, string $chatJid = '', int $limit = 50, ?int $cursor = null): array
+    {
+        $params = ['limit' => $limit];
+        if ($chatJid) {
+            $params['chatJid'] = $chatJid;
+        }
+        if ($cursor !== null) {
+            $params['cursor'] = $cursor;
+        }
+        return $this->request('GET', "/message/list/{$instanceName}", $params, $instanceName);
+    }
+
+    /**
      * Logout instance
      */
     public function logout(string $instanceName): array

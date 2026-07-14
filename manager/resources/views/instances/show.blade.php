@@ -12,6 +12,9 @@
             <p class="text-gray-600 dark:text-gray-400 mt-1">{{ $instance->description ?? 'Sem descrição' }}</p>
         </div>
         <div class="flex space-x-2">
+            <a href="{{ route('whatsapp.chat', $instance->name) }}" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition">
+                <i class="fas fa-comments mr-2"></i> Chat
+            </a>
             <a href="{{ route('messages.send', $instance->name) }}" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition">
                 <i class="fas fa-paper-plane mr-2"></i> Enviar Mensagem
             </a>

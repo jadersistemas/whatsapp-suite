@@ -55,6 +55,7 @@ type Service interface {
 	SendContact(ctx context.Context, instanceName string, bearerToken string, input SendContactRequest) (SendResult, error)
 	SendLocation(ctx context.Context, instanceName string, bearerToken string, input SendLocationRequest) (SendResult, error)
 	SendReaction(ctx context.Context, instanceName string, bearerToken string, input SendReactionRequest) (SendResult, error)
+	ListMessages(ctx context.Context, instanceName string, bearerToken string, chatJid string, limit int32, cursor *int32) (dbtypes.MessageListResult, error)
 }
 
 type MessageService struct {
@@ -1002,4 +1003,28 @@ func participantCountFromContent(raw json.RawMessage) int {
 		return len(mentions)
 	}
 	return 0
+}
+
+func (s *MessageService) ListMessages(ctx context.Context, instanceName string, bearerToken string, chatJid string, limit int32, cursor *int32) (dbtypes.MessageListResult, error) {
+	instance, err := s.authenticateInstance(ctx, instanceName, bearerToken)
+	if err != nil {
+		return dbtypes.MessageListResult{}, err
+	}
+
+	filters := dbtypes.MessageFilters{}
+	if chatJid != "" {
+		filters.KeyRemoteJid = &chatJid
+	}
+
+	result, err := s.messages.List(ctx, instance.Instance.ID, dbtypes.ListMessagesInput{
+		Cursor:    cursor,
+		Limit:     limit,
+		Direction: dbtypes.CursorDirectionPrevious,
+		Filters:   filters,
+	})
+	if err != nil {
+		return dbtypes.MessageListResult{}, fmt.Errorf("%w: %w", ErrInvalidRequest, err)
+	}
+
+	return result, nil
 }
