@@ -131,9 +131,9 @@
 
         const displayJid = normalizeJid(jid);
 
-        // Update contact - store original JID for queries
+        // Update contact
         if (!allContacts[displayJid]) {
-            allContacts[displayJid] = { displayJid, originalJid: jid, name: formatJidName(displayJid), lastMessage: '', time: '', unread: 0 };
+            allContacts[displayJid] = { displayJid, name: formatJidName(displayJid), lastMessage: '', time: '', unread: 0 };
         }
         allContacts[displayJid].lastMessage = parseContent(msg);
         allContacts[displayJid].time = formatTime(msg.messageTimestamp);
@@ -173,7 +173,7 @@
                     if (!jid) return;
                     const displayJid = normalizeJid(jid);
                     if (!allContacts[displayJid]) {
-                        allContacts[displayJid] = { displayJid, originalJid: jid, name: formatJidName(displayJid), lastMessage: '', time: '', unread: 0 };
+                        allContacts[displayJid] = { displayJid, name: formatJidName(displayJid), lastMessage: '', time: '', unread: 0 };
                     }
                     allContacts[displayJid].lastMessage = parseContent(msg);
                     allContacts[displayJid].time = formatTime(msg.messageTimestamp);
@@ -224,8 +224,7 @@
 
     async function selectChat(displayJid) {
         currentChat = displayJid;
-        const originalJid = allContacts[displayJid] ? allContacts[displayJid].originalJid : displayJid;
-        const number = originalJid.replace('@s.whatsapp.net', '').replace('@g.us', '');
+        const number = displayJid.replace('@s.whatsapp.net', '').replace('@g.us', '');
         document.getElementById('chat-number').value = number;
         document.getElementById('chat-name').textContent = formatJidName(displayJid);
         document.getElementById('chat-status').textContent = 'online';
@@ -245,12 +244,16 @@
         container.innerHTML = '<div class="flex justify-center py-4"><div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div>';
 
         try {
-            const originalJid = allContacts[currentChat] ? allContacts[currentChat].originalJid : currentChat;
-            const response = await fetch(`/instances/${instanceName}/messages?chatJid=${encodeURIComponent(originalJid)}&limit=100`);
+            // Fetch all messages and filter by normalized JID
+            const response = await fetch(`/instances/${instanceName}/messages?limit=200`);
             const data = await response.json();
 
             if (data.messages && data.messages.records) {
-                renderMessages(data.messages.records.reverse());
+                const filtered = data.messages.records.filter(msg => {
+                    if (!msg.keyRemoteJid) return false;
+                    return normalizeJid(msg.keyRemoteJid) === currentChat;
+                });
+                renderMessages(filtered.reverse());
             }
         } catch (error) {
             container.innerHTML = '<div class="text-center text-red-500 py-4">Erro ao carregar mensagens</div>';
