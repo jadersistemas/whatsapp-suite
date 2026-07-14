@@ -150,8 +150,8 @@
     }
 
     function normalizeJid(jid) {
-        // Remove device suffix (:XX) from JID
-        return jid.replace(/:\d+$/, '');
+        // Remove device suffix (:XX) from JID before @
+        return jid.replace(/:\d+(?=@)/, '');
     }
 
     function formatJidName(jid) {
