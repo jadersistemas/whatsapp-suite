@@ -105,24 +105,16 @@
 <script>
     const instanceName = '{{ $instance->name }}';
     let currentChat = '';
-    let eventSource = null;
     let allContacts = {};
 
-    // Initialize SSE connection
-    function initSSE() {
-        if (eventSource) eventSource.close();
-        eventSource = new EventSource(`/instances/${instanceName}/messages/stream`);
-
-        eventSource.onmessage = function(event) {
-            const data = JSON.parse(event.data);
-            if (data.type === 'new_message') {
-                handleNewMessage(data.message);
+    // Auto-refresh contacts every 10 seconds
+    function startAutoRefresh() {
+        setInterval(async () => {
+            await loadContacts();
+            if (currentChat) {
+                await loadChat();
             }
-        };
-
-        eventSource.onerror = function() {
-            setTimeout(initSSE, 5000);
-        };
+        }, 10000);
     }
 
     function handleNewMessage(msg) {
@@ -384,6 +376,6 @@
 
     // Initialize
     loadContacts();
-    initSSE();
+    startAutoRefresh();
 </script>
 @endpush
