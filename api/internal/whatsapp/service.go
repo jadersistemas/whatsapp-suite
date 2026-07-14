@@ -2495,35 +2495,6 @@ func (s *Service) handleChatbotFlow(managed *ManagedWhatsAppClient, settings Ins
 		}
 	}
 
-	// Check if user selected an option (any number) without context
-	optNum := parseOptionNumber(lowerMsg)
-	if optNum > 0 {
-		optIndex := optNum - 1
-		for _, flow := range settings.ChatbotFlows {
-			if optIndex < len(flow.Options) {
-				opt := flow.Options[optIndex]
-				if opt.Next != "" {
-					for _, nextFlow := range settings.ChatbotFlows {
-						if nextFlow.ID == opt.Next {
-							s.setChatbotContext(managed.InstanceID, chat, nextFlow.ID, userMessage, nextFlow.Message)
-							s.sendChatMessage(managed, ctx, chat, nextFlow.Message)
-							if len(nextFlow.Options) > 0 {
-								optionsText := "\n\n"
-								for i, o := range nextFlow.Options {
-									optionsText += fmt.Sprintf("*%d.* %s\n", i+1, o.Text)
-								}
-								s.sendChatMessage(managed, ctx, chat, optionsText)
-							}
-							return
-						}
-					}
-				}
-				s.sendChatMessage(managed, ctx, chat, opt.Text)
-				return
-			}
-		}
-	}
-
 	// No match - send auto reply if enabled
 	if settings.AutoReply {
 		s.sendAutoReply(managed, settings, chat)
