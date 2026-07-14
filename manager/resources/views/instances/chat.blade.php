@@ -281,25 +281,26 @@
         let html = '';
         let lastDate = '';
 
-        messages.forEach(msg => {
-            const msgDate = msg.messageTimestamp ? new Date(msg.messageTimestamp * 1000).toLocaleDateString('pt-BR') : '';
+        messages.forEach(function(msg) {
+            var msgDate = msg.messageTimestamp ? new Date(msg.messageTimestamp * 1000).toLocaleDateString('pt-BR') : '';
             if (msgDate !== lastDate) {
-                html += `<div class="flex justify-center my-3"><span class="bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs px-3 py-1 rounded-full shadow">${msgDate}</span></div>`;
+                html += '<div class="flex justify-center my-3"><span class="bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs px-3 py-1 rounded-full shadow">' + msgDate + '</span></div>';
                 lastDate = msgDate;
             }
 
-            const isMe = msg.keyFromMe;
-            const content = parseContent(msg);
-            const time = msg.messageTimestamp ? new Date(msg.messageTimestamp * 1000).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'}) : '';
-            const align = isMe ? 'justify-end' : 'justify-start';
-            const bubble = isMe ? 'msg-sent' : 'msg-received';
+            var isMe = msg.keyFromMe;
+            var content = parseContent(msg);
+            var time = msg.messageTimestamp ? new Date(msg.messageTimestamp * 1000).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'}) : '';
+            var align = isMe ? 'justify-end' : 'justify-start';
+            var bubble = isMe ? 'msg-sent' : 'msg-received';
+            var check = isMe ? '<span class="msg-check">&#10003;&#10003;</span>' : '';
 
-            html += `<div class="flex ${align} mb-1">
-                <div class="msg-bubble ${bubble}">
-                    <p class="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">${escapeHtml(content)}</p>
-                    <div class="msg-time">${time} ${isMe ? '<span class="msg-check">✓✓</span>' : ''}</div>
-                </div>
-            </div>`;
+            html += '<div class="flex ' + align + ' mb-1">' +
+                '<div class="msg-bubble ' + bubble + '">' +
+                '<p class="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">' + escapeHtml(content) + '</p>' +
+                '<div class="msg-time">' + time + ' ' + check + '</div>' +
+                '</div>' +
+            '</div>';
         });
 
         container.innerHTML = html;
@@ -327,9 +328,9 @@
 
     function parseContent(msg) {
         if (!msg.content) return '[mensagem]';
-        const content = typeof msg.content === 'string' ? JSON.parse(msg.content) : msg.content;
+        var content = typeof msg.content === 'string' ? JSON.parse(msg.content) : msg.content;
         if (content.text) return content.text;
-        if (content.caption) return '📎 ' + content.caption;
+        if (content.caption) return '[arquivo] ' + content.caption;
         if (content.conversation) return content.conversation;
         if (content.extendedTextMessage && content.extendedTextMessage.text) return content.extendedTextMessage.text;
         return '[' + (msg.messageType || 'mensagem') + ']';
