@@ -245,7 +245,18 @@
 
         try {
             // Fetch all messages and filter by normalized JID
-            const response = await fetch(`/instances/${instanceName}/messages?limit=200`);
+            const response = await fetch(`/instances/${instanceName}/messages?limit=200`, {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                }
+            });
+
+            if (!response.ok) {
+                container.innerHTML = `<div class="text-center text-red-500 py-4">Erro HTTP ${response.status}: ${response.statusText}</div>`;
+                return;
+            }
+
             const data = await response.json();
 
             if (data.messages && data.messages.records) {
@@ -254,9 +265,11 @@
                     return normalizeJid(msg.keyRemoteJid) === currentChat;
                 });
                 renderMessages(filtered.reverse());
+            } else {
+                container.innerHTML = '<div class="text-center text-yellow-500 py-4">Nenhuma mensagem encontrada</div>';
             }
         } catch (error) {
-            container.innerHTML = '<div class="text-center text-red-500 py-4">Erro ao carregar mensagens</div>';
+            container.innerHTML = `<div class="text-center text-red-500 py-4">Erro: ${error.message}</div>`;
         }
     }
 
