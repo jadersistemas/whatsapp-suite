@@ -467,6 +467,43 @@ class WhatsAppController extends Controller
     }
 
     /**
+     * SSE stream for real-time messages
+     */
+    public function streamMessages(Request $request, string $name)
+    {
+        return response()->stream(function () use ($name, $request) {
+            $lastId = 0;
+
+            while (true) {
+                if ($request->connectionAborted()) {
+                    break;
+                }
+
+                // Fetch new messages
+                $result = $this->api->listMessages($name, '', 20, null);
+
+                if ($result['success'] && isset($result['data']['messages']['records'])) {
+                    foreach ($result['data']['messages']['records'] as $msg) {
+                        if ($msg['id'] > $lastId) {
+                            $lastId = $msg['id'];
+                            echo "data: " . json_encode(['type' => 'new_message', 'message' => $msg]) . "\n\n";
+                            ob_flush();
+                            flush();
+                        }
+                    }
+                }
+
+                sleep(3);
+            }
+        }, 200, [
+            'Content-Type' => 'text/event-stream',
+            'Cache-Control' => 'no-cache',
+            'Connection' => 'keep-alive',
+            'X-Accel-Buffering' => 'no',
+        ]);
+    }
+
+    /**
      * Update instance settings
      */
     public function updateSettings(Request $request, string $name)

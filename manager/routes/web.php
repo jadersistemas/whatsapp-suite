@@ -30,6 +30,7 @@ Route::prefix('instances')->name('whatsapp.')->group(function () {
 // Chat messages API
 Route::prefix('instances/{name}/messages')->name('chat.')->group(function () {
     Route::get('/', [WhatsAppController::class, 'getMessages'])->name('list');
+    Route::get('/stream', [WhatsAppController::class, 'streamMessages'])->name('stream');
 });
 
 // Messages

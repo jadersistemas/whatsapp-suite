@@ -3,76 +3,236 @@
 @section('title', 'Chat - ' . $instance->name)
 
 @section('content')
-<div class="mb-4">
-    <div class="flex items-center justify-between">
-        <div class="flex items-center">
-            <a href="{{ route('whatsapp.show', $instance->name) }}" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 mr-3">
-                <i class="fas fa-arrow-left"></i>
-            </a>
-            <div>
-                <h1 class="text-2xl font-bold text-gray-800 dark:text-white">
-                    <i class="fas fa-comments mr-2 text-green-600"></i> Chat
-                </h1>
-                <p class="text-sm text-gray-500 dark:text-gray-400">{{ $instance->name }}</p>
+<style>
+    .chat-container { display: flex; height: calc(100vh - 140px); }
+    .chat-sidebar { width: 320px; border-right: 1px solid #e5e7eb; overflow-y: auto; }
+    .dark .chat-sidebar { border-right-color: #374151; }
+    .chat-main { flex: 1; display: flex; flex-direction: column; }
+    .chat-header { padding: 12px 16px; border-bottom: 1px solid #e5e7eb; background: white; }
+    .dark .chat-header { background: #1f2937; border-bottom-color: #374151; }
+    .chat-messages { flex: 1; overflow-y: auto; padding: 16px; background: #e5ddd5; background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23d1d5db' fill-opacity='0.15'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); }
+    .dark .chat-messages { background: #111827; }
+    .chat-input-area { padding: 12px 16px; border-top: 1px solid #e5e7eb; background: white; }
+    .dark .chat-input-area { background: #1f2937; border-top-color: #374151; }
+    .contact-item { padding: 12px 16px; cursor: pointer; border-bottom: 1px solid #f3f4f6; }
+    .dark .contact-item { border-bottom-color: #374151; }
+    .contact-item:hover, .contact-item.active { background: #f3f4f6; }
+    .dark .contact-item:hover, .dark .contact-item.active { background: #374151; }
+    .msg-bubble { max-width: 65%; padding: 8px 12px; border-radius: 8px; position: relative; word-wrap: break-word; }
+    .msg-sent { background: #dcf8c6; margin-left: auto; border-top-right-radius: 0; }
+    .msg-received { background: white; margin-right: auto; border-top-left-radius: 0; }
+    .dark .msg-sent { background: #005c4b; }
+    .dark .msg-received { background: #1f2937; }
+    .msg-time { font-size: 11px; color: #666; text-align: right; margin-top: 4px; }
+    .dark .msg-time { color: #9ca3af; }
+    .msg-check { color: #53bdeb; margin-left: 4px; }
+    .unread-badge { background: #25d366; color: white; font-size: 11px; padding: 2px 6px; border-radius: 10px; }
+    .typing-indicator { display: flex; gap: 4px; padding: 8px 12px; }
+    .typing-dot { width: 8px; height: 8px; background: #999; border-radius: 50%; animation: typing 1.4s infinite; }
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes typing { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-4px); } }
+    .online-dot { width: 10px; height: 10px; background: #25d366; border-radius: 50%; display: inline-block; }
+</style>
+
+<div class="chat-container bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
+    {{-- Sidebar - Contacts --}}
+    <div class="chat-sidebar bg-white dark:bg-gray-800">
+        <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="font-bold text-gray-800 dark:text-white">Conversas</h2>
+                <span class="text-xs text-gray-500 dark:text-gray-400" id="online-status">
+                    <span class="online-dot"></span> Conectado
+                </span>
+            </div>
+            <input type="text" id="search-contacts" placeholder="Buscar conversa..."
+                class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white" oninput="filterContacts()">
+        </div>
+        <div id="contacts-list" class="overflow-y-auto" style="height: calc(100% - 120px);">
+        </div>
+    </div>
+
+    {{-- Main Chat --}}
+    <div class="chat-main">
+        <div class="chat-header" id="chat-header">
+            <div class="flex items-center">
+                <div class="w-10 h-10 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center mr-3" id="chat-avatar">
+                    <i class="fas fa-user text-gray-500 dark:text-gray-400"></i>
+                </div>
+                <div>
+                    <p class="font-bold text-gray-800 dark:text-white" id="chat-name">Selecione uma conversa</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400" id="chat-status"></p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-3">
+                <button onclick="loadChat()" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" title="Atualizar">
+                    <i class="fas fa-sync"></i>
+                </button>
             </div>
         </div>
-        <div class="flex items-center space-x-2">
-            <select id="chat-contact" onchange="loadChat()" class="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
-                <option value="">Todas as conversas</option>
-            </select>
-            <button onclick="loadChat()" class="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg text-sm transition">
-                <i class="fas fa-sync mr-1"></i> Atualizar
-            </button>
+
+        <div class="chat-messages" id="chat-messages">
+            <div class="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
+                <div class="text-center">
+                    <i class="fab fa-whatsapp text-6xl mb-4 text-green-500"></i>
+                    <p class="text-lg">WhatsApp Web</p>
+                    <p class="text-sm">Selecione uma conversa ao lado</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-input-area" id="chat-input-area" style="display: none;">
+            <div class="flex items-center gap-2">
+                <button class="text-gray-500 hover:text-gray-700 dark:text-gray-400">
+                    <i class="fas fa-smile text-xl"></i>
+                </button>
+                <input type="text" id="chat-input" placeholder="Digite uma mensagem"
+                    class="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    onkeypress="if(event.key==='Enter')sendMessage()">
+                <button onclick="sendMessage()" class="bg-green-600 hover:bg-green-700 text-white p-2 rounded-full transition">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
         </div>
     </div>
 </div>
 
-<div class="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden" style="height: calc(100vh - 200px);">
-    {{-- Chat Messages --}}
-    <div id="chat-messages" class="h-full overflow-y-auto p-4 space-y-3">
-        <div class="text-center text-gray-500 dark:text-gray-400 py-8">
-            <i class="fas fa-comments text-4xl mb-2"></i>
-            <p>Selecione uma conversa ou clique em Atualizar</p>
-        </div>
-    </div>
-
-    {{-- Chat Input --}}
-    <div class="border-t border-gray-200 dark:border-gray-700 p-4">
-        <div class="flex gap-2">
-            <input type="text" id="chat-number" placeholder="Número (5511999999999)"
-                class="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-green-500">
-            <input type="text" id="chat-input" placeholder="Digite sua mensagem..."
-                class="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-green-500"
-                onkeypress="if(event.key==='Enter')sendMessage()">
-            <button onclick="sendMessage()" class="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg text-sm transition">
-                <i class="fas fa-paper-plane"></i>
-            </button>
-        </div>
-    </div>
-</div>
+{{-- Hidden input for number --}}
+<input type="hidden" id="chat-number" value="">
 @endsection
 
 @push('scripts')
 <script>
     const instanceName = '{{ $instance->name }}';
     let currentChat = '';
+    let eventSource = null;
+    let allContacts = {};
 
-    async function loadChat() {
-        const chatJid = document.getElementById('chat-contact').value;
-        const container = document.getElementById('chat-messages');
+    // Initialize SSE connection
+    function initSSE() {
+        if (eventSource) eventSource.close();
+        eventSource = new EventSource(`/instances/${instanceName}/messages/stream`);
 
-        container.innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin text-green-600"></i></div>';
+        eventSource.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            if (data.type === 'new_message') {
+                handleNewMessage(data.message);
+            }
+        };
 
+        eventSource.onerror = function() {
+            setTimeout(initSSE, 5000);
+        };
+    }
+
+    function handleNewMessage(msg) {
+        const jid = msg.keyRemoteJid;
+        if (!jid) return;
+
+        // Update contact
+        if (!allContacts[jid]) {
+            allContacts[jid] = { jid, name: jid.replace('@s.whatsapp.net', '').replace('@g.us', ' (grupo)'), lastMessage: '', time: '', unread: 0 };
+        }
+        allContacts[jid].lastMessage = parseContent(msg);
+        allContacts[jid].time = formatTime(msg.messageTimestamp);
+        if (!msg.keyFromMe) allContacts[jid].unread++;
+
+        renderContacts();
+
+        // If viewing this chat, add message
+        if (jid === currentChat) {
+            appendMessage(msg);
+            allContacts[jid].unread = 0;
+            renderContacts();
+        }
+    }
+
+    async function loadContacts() {
         try {
-            const url = chatJid
-                ? `/instances/${instanceName}/messages?chatJid=${chatJid}&limit=100`
-                : `/instances/${instanceName}/messages?limit=100`;
-            const response = await fetch(url);
+            const response = await fetch(`/instances/${instanceName}/messages?limit=200`);
             const data = await response.json();
 
             if (data.messages && data.messages.records) {
-                renderMessages(data.messages.records);
-                updateContactList(data.messages.records);
+                allContacts = {};
+                data.messages.records.reverse().forEach(msg => {
+                    const jid = msg.keyRemoteJid;
+                    if (!jid) return;
+                    if (!allContacts[jid]) {
+                        allContacts[jid] = { jid, name: jid.replace('@s.whatsapp.net', '').replace('@g.us', ' (grupo)'), lastMessage: '', time: '', unread: 0 };
+                    }
+                    allContacts[jid].lastMessage = parseContent(msg);
+                    allContacts[jid].time = formatTime(msg.messageTimestamp);
+                });
+                renderContacts();
+            }
+        } catch (error) {
+            console.error('Error loading contacts:', error);
+        }
+    }
+
+    function renderContacts() {
+        const container = document.getElementById('contacts-list');
+        const sorted = Object.values(allContacts).sort((a, b) => {
+            const timeA = a.time ? new Date('2026-01-01 ' + a.time) : new Date(0);
+            const timeB = b.time ? new Date('2026-01-01 ' + b.time) : new Date(0);
+            return timeB - timeA;
+        });
+
+        container.innerHTML = sorted.map(c => `
+            <div class="contact-item ${c.jid === currentChat ? 'active' : ''}" onclick="selectChat('${c.jid}')">
+                <div class="flex items-center">
+                    <div class="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center mr-3 flex-shrink-0">
+                        <span class="text-white font-bold text-lg">${c.name.charAt(0).toUpperCase()}</span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex justify-between items-center">
+                            <span class="font-medium text-gray-800 dark:text-white text-sm truncate">${c.name}</span>
+                            <span class="text-xs text-gray-500 dark:text-gray-400">${c.time || ''}</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <p class="text-xs text-gray-500 dark:text-gray-400 truncate">${escapeHtml(c.lastMessage)}</p>
+                            ${c.unread > 0 ? `<span class="unread-badge">${c.unread}</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function filterContacts() {
+        const search = document.getElementById('search-contacts').value.toLowerCase();
+        document.querySelectorAll('.contact-item').forEach(item => {
+            const name = item.textContent.toLowerCase();
+            item.style.display = name.includes(search) ? 'flex' : 'none';
+        });
+    }
+
+    async function selectChat(jid) {
+        currentChat = jid;
+        document.getElementById('chat-number').value = jid.replace('@s.whatsapp.net', '').replace('@g.us', '');
+        document.getElementById('chat-name').textContent = jid.replace('@s.whatsapp.net', '').replace('@g.us', ' (Grupo)');
+        document.getElementById('chat-status').textContent = 'online';
+        document.getElementById('chat-input-area').style.display = 'block';
+
+        // Reset unread
+        if (allContacts[jid]) allContacts[jid].unread = 0;
+        renderContacts();
+
+        await loadChat();
+    }
+
+    async function loadChat() {
+        if (!currentChat) return;
+
+        const container = document.getElementById('chat-messages');
+        container.innerHTML = '<div class="flex justify-center py-4"><div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div>';
+
+        try {
+            const response = await fetch(`/instances/${instanceName}/messages?chatJid=${currentChat}&limit=100`);
+            const data = await response.json();
+
+            if (data.messages && data.messages.records) {
+                renderMessages(data.messages.records.reverse());
             }
         } catch (error) {
             container.innerHTML = '<div class="text-center text-red-500 py-4">Erro ao carregar mensagens</div>';
@@ -83,61 +243,70 @@
         const container = document.getElementById('chat-messages');
 
         if (!messages || messages.length === 0) {
-            container.innerHTML = '<div class="text-center text-gray-500 dark:text-gray-400 py-8"><i class="fas fa-inbox text-4xl mb-2"></i><p>Nenhuma mensagem encontrada</p></div>';
+            container.innerHTML = '<div class="flex items-center justify-center h-full text-gray-500"><p>Nenhuma mensagem</p></div>';
             return;
         }
 
-        // Group by chat JID
-        const grouped = {};
-        messages.reverse().forEach(msg => {
-            const jid = msg.keyRemoteJid || 'unknown';
-            if (!grouped[jid]) grouped[jid] = [];
-            grouped[jid].push(msg);
-        });
-
         let html = '';
-        for (const [jid, msgs] of Object.entries(grouped)) {
-            const displayName = jid.replace('@s.whatsapp.net', '').replace('@g.us', ' (grupo)');
-            html += `<div class="border-b border-gray-200 dark:border-gray-700 pb-2 mb-4">
-                <div class="text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 cursor-pointer hover:text-green-600" onclick="filterChat('${jid}')">
-                    <i class="fas fa-user mr-1"></i> ${displayName}
-                </div>`;
+        let lastDate = '';
 
-            msgs.forEach(msg => {
-                const isMe = msg.keyFromMe;
-                const content = parseContent(msg);
-                const time = msg.messageTimestamp ? new Date(msg.messageTimestamp * 1000).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'}) : '';
-                const align = isMe ? 'justify-end' : 'justify-start';
-                const bubble = isMe
-                    ? 'bg-green-600 text-white rounded-l-xl rounded-tr-xl'
-                    : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-r-xl rounded-tl-xl';
+        messages.forEach(msg => {
+            const msgDate = msg.messageTimestamp ? new Date(msg.messageTimestamp * 1000).toLocaleDateString('pt-BR') : '';
+            if (msgDate !== lastDate) {
+                html += `<div class="flex justify-center my-3"><span class="bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs px-3 py-1 rounded-full shadow">${msgDate}</span></div>`;
+                lastDate = msgDate;
+            }
 
-                html += `<div class="flex ${align}">
-                    <div class="${bubble} px-4 py-2 max-w-xs lg:max-w-md">
-                        <p class="text-sm whitespace-pre-wrap">${escapeHtml(content)}</p>
-                        <p class="text-xs ${isMe ? 'text-green-200' : 'text-gray-500 dark:text-gray-400'} text-right mt-1">${time}</p>
-                    </div>
-                </div>`;
-            });
+            const isMe = msg.keyFromMe;
+            const content = parseContent(msg);
+            const time = msg.messageTimestamp ? new Date(msg.messageTimestamp * 1000).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'}) : '';
+            const align = isMe ? 'justify-end' : 'justify-start';
+            const bubble = isMe ? 'msg-sent' : 'msg-received';
 
-            html += '</div>';
-        }
+            html += `<div class="flex ${align} mb-1">
+                <div class="msg-bubble ${bubble}">
+                    <p class="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">${escapeHtml(content)}</p>
+                    <div class="msg-time">${time} ${isMe ? '<span class="msg-check">✓✓</span>' : ''}</div>
+                </div>
+            </div>`;
+        });
 
         container.innerHTML = html;
         container.scrollTop = container.scrollHeight;
     }
 
+    function appendMessage(msg) {
+        const container = document.getElementById('chat-messages');
+        const isMe = msg.keyFromMe;
+        const content = parseContent(msg);
+        const time = msg.messageTimestamp ? new Date(msg.messageTimestamp * 1000).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'}) : '';
+        const align = isMe ? 'justify-end' : 'justify-start';
+        const bubble = isMe ? 'msg-sent' : 'msg-received';
+
+        const html = `<div class="flex ${align} mb-1">
+            <div class="msg-bubble ${bubble}">
+                <p class="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap">${escapeHtml(content)}</p>
+                <div class="msg-time">${time} ${isMe ? '<span class="msg-check">✓✓</span>' : ''}</div>
+            </div>
+        </div>`;
+
+        container.insertAdjacentHTML('beforeend', html);
+        container.scrollTop = container.scrollHeight;
+    }
+
     function parseContent(msg) {
         if (!msg.content) return '[mensagem]';
-
         const content = typeof msg.content === 'string' ? JSON.parse(msg.content) : msg.content;
-
         if (content.text) return content.text;
-        if (content.caption) return `📎 ${content.caption}`;
+        if (content.caption) return '📎 ' + content.caption;
         if (content.conversation) return content.conversation;
         if (content.extendedTextMessage && content.extendedTextMessage.text) return content.extendedTextMessage.text;
+        return '[' + (msg.messageType || 'mensagem') + ']';
+    }
 
-        return `[${msg.messageType || 'mensagem'}]`;
+    function formatTime(timestamp) {
+        if (!timestamp) return '';
+        return new Date(timestamp * 1000).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'});
     }
 
     function escapeHtml(text) {
@@ -146,45 +315,19 @@
         return div.innerHTML;
     }
 
-    function updateContactList(messages) {
-        const contacts = new Set();
-        messages.forEach(msg => {
-            if (msg.keyRemoteJid) {
-                contacts.add(msg.keyRemoteJid);
-            }
-        });
-
-        const select = document.getElementById('chat-contact');
-        const current = select.value;
-        select.innerHTML = '<option value="">Todas as conversas</option>';
-
-        contacts.forEach(jid => {
-            const display = jid.replace('@s.whatsapp.net', '').replace('@g.us', ' (grupo)');
-            const opt = document.createElement('option');
-            opt.value = jid;
-            opt.textContent = display;
-            if (jid === current) opt.selected = true;
-            select.appendChild(opt);
-        });
-    }
-
-    function filterChat(jid) {
-        document.getElementById('chat-contact').value = jid;
-        loadChat();
-    }
-
     async function sendMessage() {
-        const number = document.getElementById('chat-number').value.trim();
+        const number = document.getElementById('chat-number').value;
         const text = document.getElementById('chat-input').value.trim();
 
-        if (!number || !text) {
-            alert('Preencha o número e a mensagem');
-            return;
-        }
+        if (!number || !text) return;
+
+        const input = document.getElementById('chat-input');
+        input.value = '';
+        input.disabled = true;
 
         try {
             const csrfToken = '{{ csrf_token() }}';
-            const response = await fetch(`/messages/${instanceName}/text`, {
+            await fetch(`/messages/${instanceName}/text`, {
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': csrfToken,
@@ -193,19 +336,16 @@
                 },
                 body: JSON.stringify({ number, text }),
             });
-
-            if (response.ok) {
-                document.getElementById('chat-input').value = '';
-                setTimeout(loadChat, 1000);
-            } else {
-                alert('Erro ao enviar mensagem');
-            }
         } catch (error) {
-            alert('Erro de conexão: ' + error.message);
+            console.error('Send error:', error);
+        } finally {
+            input.disabled = false;
+            input.focus();
         }
     }
 
-    // Auto-refresh every 10 seconds
-    setInterval(loadChat, 10000);
+    // Initialize
+    loadContacts();
+    initSSE();
 </script>
 @endpush
