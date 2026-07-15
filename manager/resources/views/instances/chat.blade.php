@@ -106,15 +106,15 @@
     const instanceName = '{{ $instance->name }}';
     let currentChat = '';
     let allContacts = {};
+    let lastMessageId = 0;
 
-    // Auto-refresh contacts every 10 seconds
-    function startAutoRefresh() {
-        setInterval(async () => {
-            await loadContacts();
+    // Poll for new messages every 5 seconds
+    function startPolling() {
+        setInterval(function() {
             if (currentChat) {
-                await loadChat();
+                loadChat(false);
             }
-        }, 10000);
+        }, 5000);
     }
 
     function handleNewMessage(msg) {
@@ -226,18 +226,21 @@
         if (allContacts[displayJid]) allContacts[displayJid].unread = 0;
         renderContacts();
 
-        await loadChat();
+        await loadChat(true);
     }
 
-    async function loadChat() {
+    async function loadChat(initial) {
         if (!currentChat) return;
 
         const container = document.getElementById('chat-messages');
-        container.innerHTML = '<div class="flex justify-center py-4"><div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div>';
+
+        if (initial) {
+            container.innerHTML = '<div class="flex justify-center py-4"><div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div>';
+            lastMessageId = 0;
+        }
 
         try {
-            // Fetch all messages and filter by normalized JID
-            const response = await fetch(`/instances/${instanceName}/messages?limit=500`, {
+            const response = await fetch('/instances/' + instanceName + '/messages?limit=100', {
                 credentials: 'same-origin',
                 headers: {
                     'Accept': 'application/json',
@@ -245,26 +248,34 @@
                 }
             });
 
-            if (!response.ok) {
-                container.innerHTML = `<div class="text-center text-red-500 py-4">Erro HTTP ${response.status}: ${response.statusText}</div>`;
-                return;
-            }
+            if (!response.ok) return;
 
             const data = await response.json();
 
             if (data.messages && data.messages.records) {
-                const filtered = data.messages.records.filter(msg => {
+                var filtered = data.messages.records.filter(function(msg) {
                     if (!msg.keyRemoteJid) return false;
-                    const normalized = normalizeJid(msg.keyRemoteJid);
-                    return normalized === currentChat;
+                    return normalizeJid(msg.keyRemoteJid) === currentChat;
                 });
-                console.log('Current chat:', currentChat, 'Filtered:', filtered.length, 'Total:', data.messages.records.length);
-                renderMessages(filtered.reverse());
-            } else {
-                container.innerHTML = '<div class="text-center text-yellow-500 py-4">Nenhuma mensagem encontrada</div>';
+
+                if (initial) {
+                    renderMessages(filtered.reverse());
+                } else {
+                    // Only append new messages
+                    filtered.forEach(function(msg) {
+                        if (msg.id > lastMessageId) {
+                            appendMessage(msg);
+                            lastMessageId = msg.id;
+                        }
+                    });
+                }
+
+                if (filtered.length > 0) {
+                    lastMessageId = Math.max(lastMessageId, filtered[filtered.length - 1].id);
+                }
             }
         } catch (error) {
-            container.innerHTML = `<div class="text-center text-red-500 py-4">Erro: ${error.message}</div>`;
+            // Silent fail for polling
         }
     }
 
@@ -379,6 +390,6 @@
 
     // Initialize
     loadContacts();
-    startAutoRefresh();
+    startPolling();
 </script>
 @endpush
