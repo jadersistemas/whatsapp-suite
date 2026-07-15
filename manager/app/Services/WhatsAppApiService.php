@@ -288,7 +288,7 @@ class WhatsAppApiService
     public function fetchProfilePicture(string $instanceName, string $jid): array
     {
         return $this->request('POST', "/chat/fetchProfilePictureUrl/{$instanceName}", [
-            'jid' => $jid,
+            'number' => $jid,
         ], $instanceName);
     }
 
