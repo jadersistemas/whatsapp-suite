@@ -313,11 +313,22 @@
                 if (initial) {
                     renderMessages(filtered.reverse());
                 } else {
-                    // Only append new messages
+                    // Only append new messages and update contacts
                     filtered.forEach(function(msg) {
                         if (msg.id > lastMessageId) {
                             appendMessage(msg);
                             lastMessageId = msg.id;
+
+                            // Update contact's last message
+                            var contactJid = normalizeJid(msg.keyRemoteJid);
+                            if (allContacts[contactJid]) {
+                                allContacts[contactJid].lastMessage = parseContent(msg);
+                                allContacts[contactJid].time = formatTime(msg.messageTimestamp);
+                                if (!msg.keyFromMe && contactJid !== currentChat) {
+                                    allContacts[contactJid].unread = (allContacts[contactJid].unread || 0) + 1;
+                                }
+                                renderContacts();
+                            }
                         }
                     });
                 }

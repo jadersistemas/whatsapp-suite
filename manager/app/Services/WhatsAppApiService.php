@@ -283,6 +283,16 @@ class WhatsAppApiService
     }
 
     /**
+     * Fetch profile picture URL
+     */
+    public function fetchProfilePicture(string $instanceName, string $jid): array
+    {
+        return $this->request('POST', "/chat/fetchProfilePictureUrl/{$instanceName}", [
+            'jid' => $jid,
+        ], $instanceName);
+    }
+
+    /**
      * Update instance settings
      */
     public function updateSettings(string $instanceName, array $settings): array

@@ -467,6 +467,24 @@ class WhatsAppController extends Controller
     }
 
     /**
+     * Fetch profile picture
+     */
+    public function fetchProfilePicture(Request $request, string $name)
+    {
+        $request->validate([
+            'jid' => 'required|string',
+        ]);
+
+        $result = $this->api->fetchProfilePicture($name, $request->jid);
+
+        if ($result['success']) {
+            return response()->json($result['data']);
+        }
+
+        return response()->json(['profilePictureURL' => null]);
+    }
+
+    /**
      * SSE stream for real-time messages
      */
     public function streamMessages(Request $request, string $name)
