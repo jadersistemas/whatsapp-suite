@@ -242,7 +242,7 @@
                         '<span class="text-xs text-gray-500 dark:text-gray-400">' + (c.time || '') + '</span>' +
                     '</div>' +
                     '<div class="flex justify-between items-center">' +
-                        '<p class="text-xs text-gray-500 dark:text-gray-400 truncate">' + escapeHtml(c.lastMessage) + '</p>' +
+                        '<p class="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[200px]">' + escapeHtml(c.lastMessage || 'Nenhuma mensagem') + '</p>' +
                         badge +
                     '</div>' +
                 '</div></div></div>';
@@ -392,10 +392,11 @@
     function parseContent(msg) {
         if (!msg.content) return '[mensagem]';
         var content = typeof msg.content === 'string' ? JSON.parse(msg.content) : msg.content;
-        if (content.text) return content.text;
-        if (content.caption) return '[arquivo] ' + content.caption;
-        if (content.conversation) return content.conversation;
-        if (content.extendedTextMessage && content.extendedTextMessage.text) return content.extendedTextMessage.text;
+        var prefix = msg.keyFromMe ? 'Você: ' : '';
+        if (content.text) return prefix + content.text;
+        if (content.caption) return prefix + '[arquivo] ' + content.caption;
+        if (content.conversation) return prefix + content.conversation;
+        if (content.extendedTextMessage && content.extendedTextMessage.text) return prefix + content.extendedTextMessage.text;
         return '[' + (msg.messageType || 'mensagem') + ']';
     }
 
