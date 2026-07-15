@@ -108,13 +108,13 @@
     let allContacts = {};
     let lastMessageId = 0;
 
-    // Poll for new messages every 5 seconds
+    // Poll for new messages every 2 seconds
     function startPolling() {
         setInterval(function() {
             if (currentChat) {
                 loadChat(false);
             }
-        }, 5000);
+        }, 2000);
     }
 
     function handleNewMessage(msg) {
