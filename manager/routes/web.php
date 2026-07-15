@@ -33,7 +33,7 @@ Route::prefix('instances/{name}/messages')->name('chat.')->group(function () {
     Route::get('/stream', [WhatsAppController::class, 'streamMessages'])->name('stream');
 });
 
-Route::post('/instances/{name}/profile-picture', [WhatsAppController::class, 'fetchProfilePicture'])->name('profilePicture');
+Route::get('/instances/{name}/profile-picture', [WhatsAppController::class, 'fetchProfilePicture'])->name('profilePicture');
 
 // Messages
 Route::prefix('messages')->name('messages.')->group(function () {

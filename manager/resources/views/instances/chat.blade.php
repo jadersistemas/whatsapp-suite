@@ -161,15 +161,9 @@
     async function fetchProfilePic(jid) {
         if (profilePics[jid] !== undefined) return profilePics[jid];
         try {
-            var response = await fetch('/instances/' + instanceName + '/profile-picture', {
-                method: 'POST',
+            var response = await fetch('/instances/' + instanceName + '/profile-picture?jid=' + encodeURIComponent(jid), {
                 credentials: 'same-origin',
-                headers: {
-                    'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-                body: JSON.stringify({ jid: jid }),
+                headers: { 'Accept': 'application/json' }
             });
             var data = await response.json();
             profilePics[jid] = data.profilePictureURL || null;
@@ -318,19 +312,27 @@
                         if (msg.id > lastMessageId) {
                             appendMessage(msg);
                             lastMessageId = msg.id;
-
-                            // Update contact's last message
-                            var contactJid = normalizeJid(msg.keyRemoteJid);
-                            if (allContacts[contactJid]) {
-                                allContacts[contactJid].lastMessage = parseContent(msg);
-                                allContacts[contactJid].time = formatTime(msg.messageTimestamp);
-                                if (!msg.keyFromMe && contactJid !== currentChat) {
-                                    allContacts[contactJid].unread = (allContacts[contactJid].unread || 0) + 1;
-                                }
-                                renderContacts();
-                            }
                         }
                     });
+                }
+
+                // Always update contacts from all messages
+                if (!initial && data.messages.records) {
+                    var changed = false;
+                    data.messages.records.forEach(function(msg) {
+                        if (!msg.keyRemoteJid) return;
+                        var contactJid = normalizeJid(msg.keyRemoteJid);
+                        if (!allContacts[contactJid]) {
+                            allContacts[contactJid] = { displayJid: contactJid, name: formatJidName(contactJid), lastMessage: '', time: '', unread: 0 };
+                        }
+                        allContacts[contactJid].lastMessage = parseContent(msg);
+                        allContacts[contactJid].time = formatTime(msg.messageTimestamp);
+                        if (!msg.keyFromMe && contactJid !== currentChat) {
+                            allContacts[contactJid].unread = (allContacts[contactJid].unread || 0) + 1;
+                            changed = true;
+                        }
+                    });
+                    if (changed) renderContacts();
                 }
 
                 if (filtered.length > 0) {

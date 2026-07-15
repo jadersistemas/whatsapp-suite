@@ -471,11 +471,12 @@ class WhatsAppController extends Controller
      */
     public function fetchProfilePicture(Request $request, string $name)
     {
-        $request->validate([
-            'jid' => 'required|string',
-        ]);
+        $jid = $request->query('jid', '');
+        if (empty($jid)) {
+            return response()->json(['profilePictureURL' => null]);
+        }
 
-        $result = $this->api->fetchProfilePicture($name, $request->jid);
+        $result = $this->api->fetchProfilePicture($name, $jid);
 
         if ($result['success']) {
             return response()->json($result['data']);
