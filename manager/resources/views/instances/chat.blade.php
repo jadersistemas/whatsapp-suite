@@ -56,8 +56,8 @@
     <div class="chat-main">
         <div class="chat-header" id="chat-header">
             <div class="flex items-center">
-                <div class="w-10 h-10 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center mr-3" id="chat-avatar">
-                    <i class="fas fa-user text-gray-500 dark:text-gray-400"></i>
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center mr-3" id="chat-avatar">
+                    <i class="fas fa-user text-white"></i>
                 </div>
                 <div>
                     <p class="font-bold text-gray-800 dark:text-white" id="chat-name">Selecione uma conversa</p>
@@ -107,6 +107,7 @@
     let currentChat = '';
     let allContacts = {};
     let lastMessageId = 0;
+    let profilePics = {};
 
     // Poll for new messages every 2 seconds
     function startPolling() {
@@ -147,10 +148,49 @@
     }
 
     function formatJidName(jid) {
-        const number = jid.replace('@s.whatsapp.net', '').replace('@g.us', '');
+        var number = jid.replace('@s.whatsapp.net', '').replace('@g.us', '');
         if (jid.includes('@g.us')) return 'Grupo ' + number;
         if (jid === 'status@broadcast') return 'Status';
         return number;
+    }
+
+    function getInitial(name) {
+        return name.charAt(0).toUpperCase();
+    }
+
+    async function fetchProfilePic(jid) {
+        if (profilePics[jid] !== undefined) return profilePics[jid];
+        try {
+            var response = await fetch('/instances/' + instanceName + '/profile-picture', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({ jid: jid }),
+            });
+            var data = await response.json();
+            profilePics[jid] = data.profilePictureURL || null;
+            return profilePics[jid];
+        } catch (e) {
+            profilePics[jid] = null;
+            return null;
+        }
+    }
+
+    async function loadProfilePics() {
+        var promises = [];
+        Object.keys(allContacts).forEach(function(jid) {
+            if (jid.includes('@s.whatsapp.net') && jid !== 'status@broadcast') {
+                promises.push(fetchProfilePic(jid).then(function(url) {
+                    allContacts[jid].profilePic = url;
+                }));
+            }
+        });
+        await Promise.all(promises);
+        renderContacts();
     }
 
     async function loadContacts() {
@@ -171,6 +211,7 @@
                     allContacts[displayJid].time = formatTime(msg.messageTimestamp);
                 });
                 renderContacts();
+                loadProfilePics();
             }
         } catch (error) {
             console.error('Error loading contacts:', error);
@@ -185,25 +226,27 @@
             return timeB - timeA;
         });
 
-        container.innerHTML = sorted.map(c => `
-            <div class="contact-item ${c.displayJid === currentChat ? 'active' : ''}" onclick="selectChat('${c.displayJid}')">
-                <div class="flex items-center">
-                    <div class="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center mr-3 flex-shrink-0">
-                        <span class="text-white font-bold text-lg">${c.name.charAt(0).toUpperCase()}</span>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <div class="flex justify-between items-center">
-                            <span class="font-medium text-gray-800 dark:text-white text-sm truncate">${c.name}</span>
-                            <span class="text-xs text-gray-500 dark:text-gray-400">${c.time || ''}</span>
-                        </div>
-                        <div class="flex justify-between items-center">
-                            <p class="text-xs text-gray-500 dark:text-gray-400 truncate">${escapeHtml(c.lastMessage)}</p>
-                            ${c.unread > 0 ? `<span class="unread-badge">${c.unread}</span>` : ''}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `).join('');
+        container.innerHTML = sorted.map(function(c) {
+            var initial = getInitial(c.name);
+            var avatar = c.profilePic
+                ? '<img src="' + c.profilePic + '" class="w-12 h-12 rounded-full object-cover mr-3 flex-shrink-0">'
+                : '<div class="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center mr-3 flex-shrink-0"><span class="text-white font-bold text-lg">' + initial + '</span></div>';
+            var badge = c.unread > 0 ? '<span class="unread-badge">' + c.unread + '</span>' : '';
+            var activeClass = c.displayJid === currentChat ? ' active' : '';
+
+            return '<div class="contact-item' + activeClass + '" onclick="selectChat(\'' + c.displayJid + '\')">' +
+                '<div class="flex items-center">' + avatar +
+                '<div class="flex-1 min-w-0">' +
+                    '<div class="flex justify-between items-center">' +
+                        '<span class="font-medium text-gray-800 dark:text-white text-sm truncate">' + c.name + '</span>' +
+                        '<span class="text-xs text-gray-500 dark:text-gray-400">' + (c.time || '') + '</span>' +
+                    '</div>' +
+                    '<div class="flex justify-between items-center">' +
+                        '<p class="text-xs text-gray-500 dark:text-gray-400 truncate">' + escapeHtml(c.lastMessage) + '</p>' +
+                        badge +
+                    '</div>' +
+                '</div></div></div>';
+        }).join('');
     }
 
     function filterContacts() {
@@ -216,11 +259,20 @@
 
     async function selectChat(displayJid) {
         currentChat = displayJid;
-        const number = displayJid.replace('@s.whatsapp.net', '').replace('@g.us', '');
+        var number = displayJid.replace('@s.whatsapp.net', '').replace('@g.us', '');
         document.getElementById('chat-number').value = number;
         document.getElementById('chat-name').textContent = formatJidName(displayJid);
         document.getElementById('chat-status').textContent = 'online';
         document.getElementById('chat-input-area').style.display = 'block';
+
+        // Update avatar in header
+        var avatarContainer = document.getElementById('chat-avatar');
+        var pic = allContacts[displayJid] ? allContacts[displayJid].profilePic : null;
+        if (pic) {
+            avatarContainer.innerHTML = '<img src="' + pic + '" class="w-10 h-10 rounded-full object-cover">';
+        } else {
+            avatarContainer.innerHTML = '<span class="text-white font-bold text-lg">' + getInitial(formatJidName(displayJid)) + '</span>';
+        }
 
         // Reset unread
         if (allContacts[displayJid]) allContacts[displayJid].unread = 0;
